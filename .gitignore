@@ -1,9 +1,12 @@
 *.root
-data_shared/*.root
-performanceMetrics.json
+output/*
 dpl-config.json
 *.pdf
 *.png
 *.DS_Store*
 *__pycache__*
 *~
+*.d
+*.so
+*.pcm
+dimuonAnalysis.*
