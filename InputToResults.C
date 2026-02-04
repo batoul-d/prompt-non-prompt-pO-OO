@@ -21,7 +21,8 @@
 void signalExtraction(bool ispO=true, bool isMC =false, const char *caseName = "nominal", bool remakeDS =false, bool fitMass=true, bool fitTauz=false);
 void plotResult(bool ispO=true, const char *caseName = "nominal", string axisName = "pt", int incMinCent=0, int incMaxCent=100, float incMinPt=0., float incMaxPt=50., float incMinRap=-3.5, float incMaxRap=-2.5, float incMinChi2=0, float incMaxChi2=50);
 
-void InputToResults(bool ispO=true, bool isMC=false, const char *caseName = "nominal", bool remakeDS = false, bool fitMass1D=false, bool fitTauz1D=false, bool fit2D=false, bool plotResults = true) {
+//void InputToResults(bool ispO=true, bool isMC=false, const char *caseName = "nominal", bool remakeDS = false, bool fitMass1D=false, bool fitTauz1D=false, bool fit2D=false, bool plotResults = true) {
+void InputToResults(bool ispO=true, bool isMC=false, const char *caseName = "rapBins", bool remakeDS = false, bool fitMass1D=true, bool fitTauz1D=false, bool fit2D=false, bool plotResults = false) {
   gSystem->Load("RooExtCBShape.cxx+");
   //cout<<"plotResults = "<<plotResults<<endl;
   if (fitMass1D) {
@@ -111,8 +112,8 @@ void signalExtraction(bool ispO, bool isMC, const char *caseName, bool remakeDS,
     std::string rangeLabel = Form("pt_%d_%d_rap_%d_%d_cent_%d_%d_chi2_%d_%d",
 				  (int) cutVector[j].pt.Min,
 				  (int) cutVector[j].pt.Max,
-				  (int) cutVector[j].rap.Min,
-				  (int) cutVector[j].rap.Max,			    
+				  (int) (10*cutVector[j].rap.Min),
+				  (int) (10*cutVector[j].rap.Max),			    
 				  (int) cutVector[j].cent.Start,
 				  (int) cutVector[j].cent.End,
 				  (int) cutVector[j].chi2.Min,
@@ -398,8 +399,8 @@ void plotResult(bool ispO, const char *caseName, string axisName, int incMinCent
   string rangeName = Form("_pt_%d_%d_rap_%d_%d_cent_%d_%d_chi2_%d_%d",
 			  (int) incMinPt,
 			  (int) incMaxPt,
-			  (int) incMinRap,
-			  (int) incMaxRap,
+			  (int) (10*incMinRap),
+			  (int) (10*incMaxRap),
 			  (int) incMinCent,
 			  (int) incMaxCent,
 			  (int) incMinChi2,

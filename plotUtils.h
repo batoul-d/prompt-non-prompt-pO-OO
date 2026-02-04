@@ -221,7 +221,6 @@ TLatex* cutTextResult(bool ispO, string axisName, float xText, float yText, floa
 
   if (!(axisName.find("centrality")!=std::string::npos) && !ispO) {
     textCut->DrawLatex(xText, yText, Form("%d < cent < %d %%", (int) incMinCent, (int) incMaxCent));
-    cout<<"adding cent to the label"<<endl;
     yText = yText-0.04;
   }
   if (!(axisName.find("pt")!=std::string::npos)){
@@ -229,12 +228,10 @@ TLatex* cutTextResult(bool ispO, string axisName, float xText, float yText, floa
       textCut->DrawLatex(xText, yText, Form("p_{T} < %g GeV", incMaxPt));
     else
       textCut->DrawLatex(xText, yText, Form("%g < p_{T} < %g GeV", incMinPt, incMaxPt));
-    cout<<"adding pt to the label"<<endl;
     yText = yText-0.04;
   }
   if (!(axisName.find("rap")!=std::string::npos)) {
     textCut->DrawLatex(xText, yText, Form("%g < y < %g", -1*incMaxRap, -1*incMinRap));
-    cout<<"adding rap to the label"<<endl;
     yText = yText-0.04;
   }
   if (!(axisName.find("chi2")!=std::string::npos)) {
