@@ -101,9 +101,8 @@ RooDataSet* createDataset(bool ispO, bool isMC) {
   for(int nEv = 0; nEv < n_entries; nEv++) {
     if (nEv%100000==0) cout<<"processing evt "<<nEv<<"/"<<n_entries<<endl;
     fChain->GetEntry(nEv);
-    float rap = TMath::Log((TMath::Sqrt(fMass * fMass + fPt * fPt * TMath::CosH(fEta) *
-					TMath::CosH(fEta)) +
-			    fPt * TMath::SinH(fEta)) /
+    
+    float rap = TMath::Log((TMath::Sqrt(fMass * fMass + fPt * fPt * TMath::CosH(fEta) * TMath::CosH(fEta)) + fPt * TMath::SinH(fEta)) /
 			   (TMath::Sqrt(fMass * fMass + fPt * fPt)));
     
     if (fMass<2 || fMass>4) continue;

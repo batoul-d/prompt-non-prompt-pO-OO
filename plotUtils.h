@@ -42,6 +42,8 @@ string varFancyLabel(string varLabel="") {
   fancyLabels["c0_mass"] = "c^{Bkg}_{0}";
   fancyLabels["c1_mass"] = "c^{Bkg}_{1}";
   fancyLabels["c2_mass"] = "c^{Bkg}_{2}";
+  fancyLabels["c3_mass"] = "c^{Bkg}_{3}";
+  fancyLabels["c4_mass"] = "c^{Bkg}_{4}";
   
   fancyLabels["mean_tauzRes"] = "#tau_{z0}";
   fancyLabels["sigma_tauzRes"] = "#sigma^{#tau_{z}}";
@@ -150,8 +152,8 @@ TLatex *AliceText (bool ispO) {
     textAlice->SetNDC();
     textAlice->SetTextAlign(12);
     textAlice->SetTextFont(43);
-    textAlice->SetTextSize(20); // Size in pixel height
-    textAlice->DrawLatex(0.6, 0.92, Form("ALICE %s @ #sqrt{s} = %s TeV", ispO?"pO":"OO", ispO?"9.62":"5.36"));
+    textAlice->SetTextSize(25); // Size in pixel height
+    textAlice->DrawLatex(0.55, 0.92, Form("ALICE %s @#sqrt{s} = %s TeV", ispO?"pO":"OO", ispO?"9.62":"5.36"));
     return textAlice;
 }
 
@@ -187,8 +189,8 @@ TLatex *varLatex (RooWorkspace *ws, map<string, string> parIni, bool fitMass, bo
     if (it->first.find("si2s")!=std::string::npos) continue;
     
     if (ws->var(it->first.c_str())->getError()==0) continue;
-    cout<<"[INFO] writing variable "<<it->first.c_str()<<" = "<<endl;
-    cout<<ws->var(it->first.c_str())->getValV()<<endl;
+    cout<<"[INFO] writing variable "<<it->first.c_str()<<" = ";
+    cout<<ws->var(it->first.c_str())->getValV();
     cout<<" err = "<<ws->var(it->first.c_str())->getError()<<endl;
     
     textVar->DrawLatex(xText, yText, Form("%s = %g #pm  %g", varFancyLabel(it->first.c_str()).c_str(), ws->var(it->first.c_str())->getValV(), ws->var(it->first.c_str())->getError()));
@@ -212,12 +214,12 @@ TLatex *cutLatex (bool ispO, struct KinCuts cutVector, float xText, float yText)
     return textCut;
 }
 
-TLatex* cutTextResult(bool ispO, string axisName, float xText, float yText, float incMinCent, float incMaxCent, float incMinPt, float incMaxPt, float incMaxRap, float incMinRap, float incMinChi2, float incMaxChi2) {
+TLatex* cutTextResult(bool ispO, string axisName, float xText, float yText, float incMinCent, float incMaxCent, float incMinPt, float incMaxPt, float incMaxRap, float incMinRap, float incMinChi2, float incMaxChi2, bool diffChi2) {
     TLatex* textCut = new TLatex();
   textCut->SetNDC();
   textCut->SetTextAlign(12);
   textCut->SetTextFont(43);
-  textCut->SetTextSize(20); // Size in pixel height
+  textCut->SetTextSize(25); // Size in pixel height
 
   if (!(axisName.find("centrality")!=std::string::npos) && !ispO) {
     textCut->DrawLatex(xText, yText, Form("%d < cent < %d %%", (int) incMinCent, (int) incMaxCent));
@@ -234,7 +236,7 @@ TLatex* cutTextResult(bool ispO, string axisName, float xText, float yText, floa
     textCut->DrawLatex(xText, yText, Form("%g < y < %g", -1*incMaxRap, -1*incMinRap));
     yText = yText-0.04;
   }
-  if (!(axisName.find("chi2")!=std::string::npos)) {
+  if (!(axisName.find("chi2")!=std::string::npos) && !diffChi2) {
     textCut->DrawLatex(xText, yText, Form("%g < #chi^{2}_{matching} < %g", incMinChi2, incMaxChi2));
     yText = yText-0.04;
   }

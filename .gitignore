@@ -10,3 +10,5 @@ dpl-config.json
 *.so
 *.pcm
 dimuonAnalysis.*
+BDT_test/*
+tauzbkg_test/*

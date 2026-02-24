@@ -19,10 +19,9 @@
 #include "SignalExtraction.C"
 
 void signalExtraction(bool ispO=true, bool isMC =false, const char *caseName = "nominal", bool remakeDS =false, bool fitMass=true, bool fitTauz=false);
-void plotResult(bool ispO=true, const char *caseName = "nominal", string axisName = "pt", int incMinCent=0, int incMaxCent=100, float incMinPt=0., float incMaxPt=50., float incMinRap=-3.5, float incMaxRap=-2.5, float incMinChi2=0, float incMaxChi2=50);
+void plotResult(bool ispO=true, const char *caseName = "nominal", string axisName = "pt", int incMinCent=0, int incMaxCent=100, float incMinPt=0., float incMaxPt=50., float incMinRap=-3.5, float incMaxRap=-2.5, float incMinChi2=0, float incMaxChi2=50, bool diffChi2=false);
 
-//void InputToResults(bool ispO=true, bool isMC=false, const char *caseName = "nominal", bool remakeDS = false, bool fitMass1D=false, bool fitTauz1D=false, bool fit2D=false, bool plotResults = true) {
-void InputToResults(bool ispO=true, bool isMC=false, const char *caseName = "rapBins", bool remakeDS = false, bool fitMass1D=true, bool fitTauz1D=false, bool fit2D=false, bool plotResults = false) {
+void InputToResults(bool ispO=true, bool isMC=false, const char *caseName = "nominal", bool remakeDS = false, bool fitMass1D=true, bool fitTauz1D=false, bool fit2D=false, bool plotResults = false) {
   gSystem->Load("RooExtCBShape.cxx+");
   //cout<<"plotResults = "<<plotResults<<endl;
   if (fitMass1D) {
@@ -47,7 +46,9 @@ void InputToResults(bool ispO=true, bool isMC=false, const char *caseName = "rap
     float minChi2 = 0;
     float maxChi2 = 50;
     string axisName = "pt";
-    plotResult(ispO, caseName, axisName.c_str(), minCent, maxCent, minPt, maxPt, minRap, maxRap, minChi2, maxChi2);
+    bool diffChi2 = false;
+    if (strstr(caseName, "diffChi2") != NULL) diffChi2 = true; 
+    plotResult(ispO, caseName, axisName.c_str(), minCent, maxCent, minPt, maxPt, minRap, maxRap, minChi2, maxChi2, diffChi2);
   }
   
 }
@@ -59,7 +60,7 @@ void signalExtraction(bool ispO, bool isMC, const char *caseName, bool remakeDS,
   vector< map<string, string> >  parIniVector;
   vector< map<string, double> >  allResults;
   
-  if (!addParameters(Form("inputFiles/initialPars_%s_%s_%s.txt", fitMass?"mass":"tauz", ispO?"pO":"OO", caseName), cutVector, parIniVector)) { return; } //if 1D fit on mass or tauz it reads the corresponding file, if it's 2D it reads the mass but the other variables get added from the default values and then they are fixed
+  if (!addParameters(Form("inputFiles/initialPars_%s_%s_%s.txt", fitMass?(fitTauz?"tauz":"mass"):"tauz", ispO?"pO":"OO", caseName), cutVector, parIniVector)) { return; } //if 1D fit on mass or tauz it reads the corresponding file, if it's 2D it reads the mass but the other variables get added from the default values and then they are fixed
   
   string outputName = Form("output/output_fit%s%s_%s%s_%s.root", fitMass?"Mass":"", fitTauz?"Tauz":"", ispO?"pO":"OO", isMC?"_MC":"", caseName);
   if (gSystem->AccessPathName("output")) gSystem->mkdir("output", true);
@@ -205,8 +206,8 @@ void signalExtraction(bool ispO, bool isMC, const char *caseName, bool remakeDS,
 }
 
 
-void plotResult(bool ispO, const char *caseName, string axisName, int incMinCent, int incMaxCent, float incMinPt, float incMaxPt, float incMinRap, float incMaxRap, float incMinChi2, float incMaxChi2){
-  cout <<"[INFO] The plotting function is yet to be done"<<endl;
+void plotResult(bool ispO, const char *caseName, string axisName, int incMinCent, int incMaxCent, float incMinPt, float incMaxPt, float incMinRap, float incMaxRap, float incMinChi2, float incMaxChi2, bool diffChi2){
+  //cout <<"[INFO] The plotting function is yet to be done"<<endl;
   gStyle->SetOptStat(0);
   
   map<string, double> resultsFit;
@@ -272,7 +273,7 @@ void plotResult(bool ispO, const char *caseName, string axisName, int incMinCent
           continue;
         if (fabs(rapMin - incMinRap)>0.00001 || fabs(rapMax - incMaxRap)>0.00001)
           continue;
-	if (fabs(chi2Min - incMinChi2)>0.00001 || fabs(chi2Max - incMaxChi2)>0.00001)
+	if (!diffChi2 && (fabs(chi2Min - incMinChi2)>0.00001 || fabs(chi2Max - incMaxChi2)>0.00001))
 	  continue;
       
 	//cout<<"[INFO] This tree passed the bin selection, getting the results for pt ["<<ptMin<<"-"<<ptMax<<"], rap ["<<rapMin<<"-"<<rapMax<<"], cent ["<<centMin<<"-"<<centMax<<"]"<<endl;
@@ -288,7 +289,7 @@ void plotResult(bool ispO, const char *caseName, string axisName, int incMinCent
           continue;
         if (fabs(rapMin - incMinRap)>0.00001 || fabs(rapMax - incMaxRap)>0.00001)
           continue;
-	if (fabs(chi2Min - incMinChi2)>0.00001 || fabs(chi2Max - incMaxChi2)>0.00001)
+	if (!diffChi2 && (fabs(chi2Min - incMinChi2)>0.00001 || fabs(chi2Max - incMaxChi2)>0.00001))
 	  continue;
 
 	//cout<<"[INFO] This tree passed the bin selection, getting the results for pt ["<<ptMin<<"-"<<ptMax<<"], rap ["<<rapMin<<"-"<<rapMax<<"], cent ["<<centMin<<"-"<<centMax<<"]"<<endl;
@@ -305,7 +306,7 @@ void plotResult(bool ispO, const char *caseName, string axisName, int incMinCent
           continue;
         if (fabs(ptMin - incMinPt)>0.00001 || fabs(ptMax - incMaxPt)>0.00001)
           continue;
-	if (fabs(chi2Min - incMinChi2)>0.00001 || fabs(chi2Max - incMaxChi2)>0.00001)
+	if (!diffChi2 && (fabs(chi2Min - incMinChi2)>0.00001 || fabs(chi2Max - incMaxChi2)>0.00001))
 	  continue;
 
 	//cout<<"[INFO] This tree passed the bin selection, getting the results for pt ["<<ptMin<<"-"<<ptMax<<"], rap ["<<rapMin<<"-"<<rapMax<<"], cent ["<<centMin<<"-"<<centMax<<"]"<<endl;
@@ -352,9 +353,9 @@ void plotResult(bool ispO, const char *caseName, string axisName, int incMinCent
   results_fb->SetMarkerStyle(kFullCircle);
   results_fb->SetMarkerColor(kBlue+1);
   
-  results_fb->GetYaxis()->SetLabelSize(0.04);
+  results_fb->GetYaxis()->SetLabelSize(0.03);
   results_fb->GetYaxis()->SetTitleSize(0.04);
-  results_fb->GetYaxis()->SetTitleOffset(1.2);
+  results_fb->GetYaxis()->SetTitleOffset(1.3);
   results_fb->GetYaxis()->SetTitleFont(42);
   results_fb->GetYaxis()->CenterTitle(kTRUE);
   
@@ -379,7 +380,7 @@ void plotResult(bool ispO, const char *caseName, string axisName, int incMinCent
   TH1D* results_npr = (TH1D*) results_fb->Clone(Form("results_npr_%s", axisName.c_str()));
 
   results_fb->GetYaxis()->SetTitle("b fraction");
-  results_fb->GetYaxis()->SetRangeUser(0,*std::max_element(resVal_fb, resVal_fb+nbins)*1.2);
+  results_fb->GetYaxis()->SetRangeUser(0,0.5);//*std::max_element(resVal_fb, resVal_fb+nbins)*1.2);
   results_pr->GetYaxis()->SetTitle("N_{prompt J/#psi}");
   results_pr->GetYaxis()->SetRangeUser(0,*std::max_element(resVal_pr, resVal_pr+nbins)*1.2);
   results_npr->GetYaxis()->SetTitle("N_{non-prompt J/#psi}");
@@ -414,7 +415,7 @@ void plotResult(bool ispO, const char *caseName, string axisName, int incMinCent
   float xText=0.5; float yText=0.5;
   
   TLatex* textAlice_fb = AliceText(ispO);
-  TLatex* textCut_fb = cutTextResult(ispO, axisName,xText, yText, incMinCent, incMaxCent, incMinPt, incMaxPt, incMaxRap, incMinRap, incMinChi2, incMaxChi2);
+  TLatex* textCut_fb = cutTextResult(ispO, axisName,xText, yText, incMinCent, incMaxCent, incMinPt, incMaxPt, incMaxRap, incMinRap, incMinChi2, incMaxChi2, diffChi2);
   textAlice_fb->Draw();
   textCut_fb->Draw();
   cfb->SaveAs(Form("output/results_%s_FB_vs%s_%s%s.pdf", ispO?"pO":"OO", axisName.c_str(), caseName, rangeName.c_str()));
@@ -424,7 +425,7 @@ void plotResult(bool ispO, const char *caseName, string axisName, int incMinCent
   cpr->cd();
   results_pr->Draw("E1");
   TLatex* textAlice_pr = AliceText(ispO);
-  TLatex* textCut_pr = cutTextResult(ispO, axisName,xText, yText, incMinCent, incMaxCent, incMinPt, incMaxPt, incMaxRap, incMinRap, incMinChi2, incMaxChi2);
+  TLatex* textCut_pr = cutTextResult(ispO, axisName,xText, yText, incMinCent, incMaxCent, incMinPt, incMaxPt, incMaxRap, incMinRap, incMinChi2, incMaxChi2, diffChi2);
   textAlice_pr->Draw();
   textCut_pr->Draw("same");
   cpr->SaveAs(Form("output/results_%s_PR_vs%s_%s%s.pdf", ispO?"pO":"OO", axisName.c_str(), caseName, rangeName.c_str()));
@@ -433,7 +434,7 @@ void plotResult(bool ispO, const char *caseName, string axisName, int incMinCent
   cnpr->cd();
   results_npr->Draw("E1");
   TLatex* textAlice_npr = AliceText(ispO);
-  TLatex* textCut_npr = cutTextResult(ispO, axisName,xText, yText, incMinCent, incMaxCent, incMinPt, incMaxPt, incMaxRap, incMinRap, incMinChi2, incMaxChi2);
+  TLatex* textCut_npr = cutTextResult(ispO, axisName,xText, yText, incMinCent, incMaxCent, incMinPt, incMaxPt, incMaxRap, incMinRap, incMinChi2, incMaxChi2, diffChi2);
   textAlice_npr->Draw("same");
   textCut_npr->Draw("same");
   cnpr->SaveAs(Form("output/results_%s_NPR_vs%s_%s%s.pdf", ispO?"pO":"OO", axisName.c_str(), caseName, rangeName.c_str()));
