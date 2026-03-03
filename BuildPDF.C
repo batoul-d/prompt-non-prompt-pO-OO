@@ -104,6 +104,28 @@ void buildPDF_mass(RooWorkspace* ws, map<string, string> parIni, bool isMC){
     ws->factory("RooChebychev::bkgChev_mass(mass, {c0_mass, c1_mass, c2_mass, c3_mass, c4_mass})");
     ws->factory("RooExtendPdf::bkgPDF_mass(bkgChev_mass, fBkg_mass)");
   }
+  else if (parIni["modelBkg_mass"]=="ChevVarPol3") { // 'var' means we can use it for iterative fitting (parameters constant)
+    ws->Print();
+    ws->factory("RooChebychev::bkgChev_mass(mass, {c0_mass, c1_mass, c2_mass, c3_mass})");
+    ws->factory("RooExtendPdf::bkgPDF_mass(bkgChev_mass, fBkg_mass)");
+    // Set coefficients constant, except first (to be released order-by-order later depending on the fit chi2)
+    for (int i = 1; i <= 3; ++i) {
+      RooRealVar* coeff = ws->var(Form("c%d_mass", i));
+      if (coeff) coeff->setConstant(kTRUE);
+    }
+    ws->Print();
+  }
+  else if (parIni["modelBkg_mass"]=="ChevVarPol6") { // 'var' means we can use it for iterative fitting (parameters constant)
+    ws->Print();
+    ws->factory("RooChebychev::bkgChev_mass(mass, {c0_mass, c1_mass, c2_mass, c3_mass, c4_mass, c5_mass, c6_mass})");
+    ws->factory("RooExtendPdf::bkgPDF_mass(bkgChev_mass, fBkg_mass)");
+    // Set coefficients constant, except first (to be released order-by-order later depending on the fit chi2)
+    for (int i = 1; i <= 6; ++i) {
+      RooRealVar* coeff = ws->var(Form("c%d_mass", i));
+      if (coeff) coeff->setConstant(kTRUE);
+    }
+    ws->Print();
+  }
 
   if (parIni["modelSig_mass"]=="Gauss") {
     ws->factory("RooGaussian::jpsiGaus_mass(mass, mean_mass, sigma_mass)");

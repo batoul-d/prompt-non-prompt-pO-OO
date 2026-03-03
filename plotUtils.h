@@ -157,12 +157,14 @@ TLatex *AliceText (bool ispO) {
     return textAlice;
 }
 
-TLatex *varLatex (RooWorkspace *ws, map<string, string> parIni, bool fitMass, bool fitTauz, bool fitTauzRes, bool fitTauzBkg, float xText, float yText) {
+TLatex *varLatex (RooWorkspace *ws, map<string, string> parIni, double chi2ndf, bool fitMass, bool fitTauz, bool fitTauzRes, bool fitTauzBkg, float xText, float yText) {
   TLatex *textVar = new TLatex();
   textVar->SetNDC();
   textVar->SetTextAlign(12);
   textVar->SetTextFont(43);
   textVar->SetTextSize(17); // Size in pixel height
+  textVar->DrawLatex(xText, yText, Form("#chi^{2}/ndf = %.2f", chi2ndf));
+  yText = yText-0.04;
   
   for (auto it = parIni.cbegin(); it != parIni.cend(); ++it) {
     cout<<"[INFO] checking variable "<<it->first.c_str()<<" = "<<endl;

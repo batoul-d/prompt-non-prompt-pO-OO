@@ -1,8 +1,8 @@
-pt;y;cent;chi2;fitStat;model_tauzRes;sigma0_tauzRes;sigma1_tauzRes;sigma2_tauzRes;modelNpr_tauzSig;modelNpr_tauzBkg;lambdaDssNpr_tauzSig;
-0-20;2.5-3.6;0-100;0-50;todo;Gauss3;[0.00045,0.0003,0.0005];[0.001,0.0005,0.002];[0.004,0.001,0.01];SingleSidedDecay;TripleDecay;;
-0-1;2.5-3.6;0-100;0-50;todo;Gauss3;[0.00045,0.0003,0.0005];[0.001,0.0005,0.002];[0.004,0.001,0.01];SingleSidedDecay;TripleDecay;;
-1-2;2.5-3.6;0-100;0-50;todo;Gauss3;[0.00045,0.0003,0.0005];[0.001,0.0005,0.002];[0.004,0.001,0.01];SingleSidedDecay;TripleDecay;[1.,0.0,1.0];
-2-4;2.5-3.6;0-100;0-50;todo;Gauss3;[0.00045,0.0003,0.0005];[0.001,0.0005,0.002];[0.004,0.001,0.01];SingleSidedDecay;TripleDecay;[0.001,0.0,2.0];
-4-6;2.5-3.6;0-100;0-50;todo;Gauss3;[0.00045,0.0003,0.0005];[0.001,0.0005,0.002];[0.004,0.001,0.01];SingleSidedDecay;TripleDecay;[1.,0.0,2.0];
-6-10;2.5-3.6;0-100;0-50;todo;Gauss3;[0.00045,0.0003,0.0005];[0.001,0.0005,0.002];[0.004,0.001,0.01];SingleSidedDecay;TripleDecay;;
-10-14;2.5-3.6;0-100;0-50;todo;Gauss3;[0.00045,0.0003,0.0005];[0.001,0.0005,0.002];[0.004,0.001,0.01];SingleSidedDecay;TripleDecay;;
+pt;y;cent;chi2;fitStat;doIterativeFit;model_tauzRes;sigma0_tauzRes;sigma1_tauzRes;sigma2_tauzRes;modelNpr_tauzSig;modelNpr_tauzBkg;lambdaDssNpr_tauzSig;
+0-20;2.5-3.6;0-100;0-50;todo;false;Gauss3;[0.00045,0.0003,0.0005];[0.001,0.0005,0.002];[0.004,0.001,0.01];SingleSidedDecay;TripleDecay;;
+0-1;2.5-3.6;0-100;0-50;todo;false;Gauss3;[0.00045,0.0003,0.0005];[0.001,0.0005,0.002];[0.004,0.001,0.01];SingleSidedDecay;TripleDecay;;
+1-2;2.5-3.6;0-100;0-50;todo;false;Gauss3;[0.00045,0.0003,0.0005];[0.001,0.0005,0.002];[0.004,0.001,0.01];SingleSidedDecay;TripleDecay;[1.,0.0,1.0];
+2-4;2.5-3.6;0-100;0-50;todo;false;Gauss3;[0.00045,0.0003,0.0005];[0.001,0.0005,0.002];[0.004,0.001,0.01];SingleSidedDecay;TripleDecay;[0.001,0.0,2.0];
+4-6;2.5-3.6;0-100;0-50;todo;false;Gauss3;[0.00045,0.0003,0.0005];[0.001,0.0005,0.002];[0.004,0.001,0.01];SingleSidedDecay;TripleDecay;[1.,0.0,2.0];
+6-10;2.5-3.6;0-100;0-50;todo;false;Gauss3;[0.00045,0.0003,0.0005];[0.001,0.0005,0.002];[0.004,0.001,0.01];SingleSidedDecay;TripleDecay;;
+10-14;2.5-3.6;0-100;0-50;todo;false;Gauss3;[0.00045,0.0003,0.0005];[0.001,0.0005,0.002];[0.004,0.001,0.01];SingleSidedDecay;TripleDecay;;

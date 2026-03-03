@@ -19,7 +19,10 @@
 
 // TODO: move to some header
 struct Chi2ScanResults {
+  std::vector<double> vChi2ndf;
   std::vector<int> vChi2Values;
+  std::vector<int> vPtMinValues;
+  std::vector<int> vPtMaxValues;
   std::vector<double> vJpsiPeaks;
   std::vector<double> vJpsiPeaksErrors;
   std::vector<double> vJpsiWidths;
@@ -61,21 +64,46 @@ void StudyChi2Matching(bool ispO=false, bool isMC=false, const char *caseName = 
   // Now plot several variables of interest as a function of the chi2 cut
   // number of chi2 cuts that were used
   int nChi2 = chi2ScanResults.vChi2Values.size();
+  int ptGlobalMax = 15;
+  int nPtBins;
 
+  std::vector<int> vPtMaxValues = chi2ScanResults.vPtMaxValues;
+  for (int iPtBin = 0; iPtBin < vPtMaxValues.size(); iPtBin++) {
+    int ptBinMax = vPtMaxValues[iPtBin];
+    if (ptBinMax == ptGlobalMax) { 
+      nPtBins = iPtBin + 1;
+      break; 
+    }
+  }
+  std::cout << ">>> total number of chi2 bins = " << nChi2 << std::endl;
+  std::cout << ">>> total number of pT bins = " << nPtBins << std::endl;
+
+  // TODO: this can be done with really just one canvas and histogram
+
+  TCanvas *cChi2ndf = new TCanvas("cChi2ndf", "cChi2ndf", 800, 600);
   TCanvas *cJpsiPeaks = new TCanvas("cJpsiPeaks", "cJpsiPeaks", 800, 600);
   TCanvas *cJpsiWidths = new TCanvas("cJpsiWidths", "cJpsiWidths", 800, 600);
   TCanvas *c_nJpsi = new TCanvas("c_nJpsi", "c_nJpsi", 800, 600);
   TCanvas *c_s_over_b = new TCanvas("c_s_over_b", "c_s_over_b", 800, 600);
-  TH1D *hTemplateJpsiPeaks = new TH1D("hTemplateJpsiPeaks", "hTemplateJpsiPeaks", nChi2, 0, nChi2);
-  TH1D *hTemplateJpsiWidths = new TH1D("hTemplateJpsiWidths", "hTemplateJpsiWidths", nChi2, 0, nChi2);
-  TH1D *hTemplate_nJpsi = new TH1D("hTemplate_nJpsi", "hTemplate_nJpsi", nChi2, 0, nChi2);
-  TH1D *hTemplate_s_over_b = new TH1D("hTemplate_s_over_b", "hTemplate_s_over_b", nChi2, 0, nChi2);
-  TH1D *hJpsiPeaks = new TH1D("hJpsiPeaks", "hJpsiPeaks", nChi2, 0, nChi2);
-  TH1D *hJpsiWidths = new TH1D("hJpsiWidths", "hJpsiWidths", nChi2, 0, nChi2);
-  TH1D *h_nJpsi = new TH1D("h_nJpsi", "h_nJpsi", nChi2, 0, nChi2);
-  TH1D *h_s_over_b = new TH1D("h_s_over_b", "h_s_over_b", nChi2, 0, nChi2);
+  TCanvas *csignificance = new TCanvas("csignificance", "csignificance", 800, 600);
+  TH1D *hTemplateChi2ndf = new TH1D("hTemplateChi2ndf", "hTemplateChi2ndf", nChi2 / nPtBins, 0, nChi2 / nPtBins);
+  TH1D *hTemplateJpsiPeaks = new TH1D("hTemplateJpsiPeaks", "hTemplateJpsiPeaks", nChi2 / nPtBins, 0, nChi2 / nPtBins);
+  TH1D *hTemplateJpsiWidths = new TH1D("hTemplateJpsiWidths", "hTemplateJpsiWidths", nChi2 / nPtBins, 0, nChi2 / nPtBins);
+  TH1D *hTemplate_nJpsi = new TH1D("hTemplate_nJpsi", "hTemplate_nJpsi", nChi2 / nPtBins, 0, nChi2 / nPtBins);
+  TH1D *hTemplate_s_over_b = new TH1D("hTemplate_s_over_b", "hTemplate_s_over_b", nChi2 / nPtBins, 0, nChi2 / nPtBins);
+  TH1D *hTemplatesignificance = new TH1D("hTemplatesignificance", "hTemplatesignificance", nChi2 / nPtBins, 0, nChi2 / nPtBins);
+  TH1D *hChi2ndf = new TH1D("hChi2ndf", "hChi2ndf", nChi2 / nPtBins, 0, nChi2 / nPtBins);
+  TH1D *hJpsiPeaks = new TH1D("hJpsiPeaks", "hJpsiPeaks", nChi2 / nPtBins, 0, nChi2 / nPtBins);
+  TH1D *hJpsiWidths = new TH1D("hJpsiWidths", "hJpsiWidths", nChi2 / nPtBins, 0, nChi2 / nPtBins);
+  TH1D *h_nJpsi = new TH1D("h_nJpsi", "h_nJpsi", nChi2 / nPtBins, 0, nChi2 / nPtBins);
+  TH1D *h_s_over_b = new TH1D("h_s_over_b", "h_s_over_b", nChi2 / nPtBins, 0, nChi2 / nPtBins);
+  TH1D *hsignificance = new TH1D("hsignificance", "hsignificance", nChi2 / nPtBins, 0, nChi2 / nPtBins);
 
   // Add pT bin to title
+  if (ispO) { hTemplateChi2ndf->SetTitle(Form("J/psi fit chi2 for pO")); }
+  else { hTemplateChi2ndf->SetTitle(Form("J/psi fit chi2 for OO")); }
+  hTemplateChi2ndf->GetXaxis()->SetTitle("maximum matching chi2 cut");
+  hTemplateChi2ndf->GetYaxis()->SetRangeUser(0, 5.0);
   if (ispO) { hTemplateJpsiPeaks->SetTitle(Form("J/psi mass for pO")); }
   else { hTemplateJpsiPeaks->SetTitle(Form("J/psi mass for OO")); }
   hTemplateJpsiPeaks->GetXaxis()->SetTitle("maximum matching chi2 cut");
@@ -90,50 +118,149 @@ void StudyChi2Matching(bool ispO=false, bool isMC=false, const char *caseName = 
   }
   else { 
     hTemplate_nJpsi->SetTitle(Form("N(J/psi) for OO"));
-    hTemplate_nJpsi->GetYaxis()->SetRangeUser(0, 20000); 
+    hTemplate_nJpsi->GetYaxis()->SetRangeUser(0, 14000); 
   }
   hTemplate_nJpsi->GetXaxis()->SetTitle("maximum matching chi2 cut");
   if (ispO) { hTemplate_s_over_b->SetTitle(Form("signal/background for pO")); }
   else { hTemplate_s_over_b->SetTitle(Form("signal/background for OO")); }
   hTemplate_s_over_b->GetXaxis()->SetTitle("maximum matching chi2 cut");
-  hTemplate_s_over_b->GetYaxis()->SetRangeUser(0, 1.0);
+  hTemplate_s_over_b->GetYaxis()->SetRangeUser(0, 1.2);
 
+  if (ispO) { hTemplatesignificance->SetTitle(Form("significance for pO")); }
+  else { hTemplatesignificance->SetTitle(Form("significance for OO")); }
+  hTemplatesignificance->GetXaxis()->SetTitle("maximum matching chi2 cut");
+  hTemplatesignificance->GetYaxis()->SetRangeUser(0, 50);
+
+  cChi2ndf->cd(); hTemplateChi2ndf->Draw("HIST");
   cJpsiPeaks->cd(); hTemplateJpsiPeaks->Draw("HIST");
   cJpsiWidths->cd(); hTemplateJpsiWidths->Draw("HIST");
   c_nJpsi->cd(); hTemplate_nJpsi->Draw("HIST");
   c_s_over_b->cd(); hTemplate_s_over_b->Draw("HIST");
+  csignificance->cd(); hTemplatesignificance->Draw("HIST");
 
-  for (int iChi2 = 0; iChi2 < nChi2; iChi2++) {
-    int chi2 = chi2ScanResults.vChi2Values[iChi2];
-    double jpsiPeak = chi2ScanResults.vJpsiPeaks[iChi2];
-    double jpsiPeakError = chi2ScanResults.vJpsiPeaksErrors[iChi2];
-    double jpsiWidth = chi2ScanResults.vJpsiWidths[iChi2];
-    double jpsiWidthError = chi2ScanResults.vJpsiWidthsErrors[iChi2];
-    double nJpsi = chi2ScanResults.vNJpsi[iChi2];
-    double nJpsiError = chi2ScanResults.vNJpsiErrors[iChi2];
-    double nBkg = chi2ScanResults.vNBkg[iChi2];
-    double nBkgError = chi2ScanResults.vNBkgErrors[iChi2];
-    double s_over_b = nJpsi / nBkg;
-    double s_over_bError = s_over_b * std::sqrt((nJpsiError/nJpsi)*(nJpsiError/nJpsi) + (nBkgError/nBkg)*(nBkgError/nBkg));
-    std::cout << "s/b = " << s_over_b << std::endl;
-    hTemplateJpsiPeaks->GetXaxis()->SetBinLabel(iChi2 + 1, Form("%d", chi2));
-    hTemplateJpsiWidths->GetXaxis()->SetBinLabel(iChi2 + 1, Form("%d", chi2));
-    hTemplate_nJpsi->GetXaxis()->SetBinLabel(iChi2 + 1, Form("%d", chi2));
-    hTemplate_s_over_b->GetXaxis()->SetBinLabel(iChi2 + 1, Form("%d", chi2));
-    hJpsiPeaks->SetBinContent(iChi2 + 1, jpsiPeak);
-    hJpsiPeaks->SetBinError(iChi2 + 1, jpsiPeakError);
-    hJpsiWidths->SetBinContent(iChi2 + 1, jpsiWidth);
-    hJpsiWidths->SetBinError(iChi2 + 1, jpsiWidthError);
-    h_nJpsi->SetBinContent(iChi2 + 1, nJpsi);
-    h_nJpsi->SetBinError(iChi2 + 1, nJpsiError);
-    h_s_over_b->SetBinContent(iChi2 + 1, s_over_b);
-    h_s_over_b->SetBinError(iChi2 + 1, s_over_bError);
+  std::vector<int> vLineColours = {1, 2, 6, 8, 9, 10};
+  std::vector<std::string> vBinLabels;
+  std::vector<TH1D*> vChi2ndfClones;
+  std::vector<TH1D*> vJpsiPeaksClones;
+  std::vector<TH1D*> vJpsiWidthsClones;
+  std::vector<TH1D*> v_nJpsiClones;
+  std::vector<TH1D*> v_s_over_bClones;
+  std::vector<TH1D*> vsignificanceClones;
+
+  int nPtBinsPassed = 0;
+
+  for (int iChi2 = 0; iChi2 < nChi2 / nPtBins; iChi2++) {
+    std::cout << "iChi2 = " << iChi2 << std::endl;
+    // This chi2 is the matching chi2 !
+    int chi2 = chi2ScanResults.vChi2Values[iChi2 * nPtBins];
+    std::cout << "chi2 = " << chi2 << std::endl;
+    if (iChi2 % 5 == 0) {
+      const char *lbl = Form("%d", chi2);
+      hTemplateJpsiPeaks->GetXaxis()->SetBinLabel(iChi2 + 1, lbl);
+      hTemplateJpsiWidths->GetXaxis()->SetBinLabel(iChi2 + 1, lbl);
+      hTemplate_nJpsi->GetXaxis()->SetBinLabel(iChi2 + 1, lbl);
+      hTemplate_s_over_b->GetXaxis()->SetBinLabel(iChi2 + 1, lbl);
+      hTemplatesignificance->GetXaxis()->SetBinLabel(iChi2 + 1, lbl);
+    } else {
+      hTemplateJpsiPeaks->GetXaxis()->SetBinLabel(iChi2 + 1, "");
+      hTemplateJpsiWidths->GetXaxis()->SetBinLabel(iChi2 + 1, "");
+      hTemplate_nJpsi->GetXaxis()->SetBinLabel(iChi2 + 1, "");
+      hTemplate_s_over_b->GetXaxis()->SetBinLabel(iChi2 + 1, "");
+      hTemplatesignificance->GetXaxis()->SetBinLabel(iChi2 + 1, "");
+    }
+
+    for (int iPtBin = 0; iPtBin < nPtBins; iPtBin++) {
+      std::cout << "iPtBin = " << iPtBin << std::endl;
+      double chi2ndf = chi2ScanResults.vChi2ndf[iPtBin + nPtBinsPassed];
+      std::cout << "fit chi2 = " << chi2ndf << std::endl;
+      if (iChi2 == 0) {
+        int ptBinMin = chi2ScanResults.vPtMinValues[iPtBin];
+        int ptBinMax = chi2ScanResults.vPtMaxValues[iPtBin];
+        std::string binLabel = Form("[%i, %i]", ptBinMin, ptBinMax);
+        std::cout << "binLabel = " << binLabel << std::endl;
+        vBinLabels.push_back(binLabel);
+      }
+      // if (chi2ndf > 2.0) { continue; }
+      double jpsiPeak = chi2ScanResults.vJpsiPeaks[iPtBin + nPtBinsPassed];
+      double jpsiPeakError = chi2ScanResults.vJpsiPeaksErrors[iPtBin + nPtBinsPassed];
+      double jpsiWidth = chi2ScanResults.vJpsiWidths[iPtBin + nPtBinsPassed];
+      double jpsiWidthError = chi2ScanResults.vJpsiWidthsErrors[iPtBin + nPtBinsPassed];
+      double nJpsi = chi2ScanResults.vNJpsi[iPtBin + nPtBinsPassed];
+      double nJpsiError = chi2ScanResults.vNJpsiErrors[iPtBin + nPtBinsPassed];
+      double nBkg = chi2ScanResults.vNBkg[iPtBin + nPtBinsPassed];
+      double nBkgError = chi2ScanResults.vNBkgErrors[iPtBin + nPtBinsPassed];
+      double s_over_b = nJpsi / nBkg;
+      double s_over_bError = s_over_b * std::sqrt((nJpsiError/nJpsi)*(nJpsiError/nJpsi) + (nBkgError/nBkg)*(nBkgError/nBkg));
+      double significance = nJpsi / std::sqrt(nJpsi + nBkg);
+      double significanceError = std::sqrt(
+        std::pow(
+          (nJpsi + 2.0 * nBkg) /
+          (2.0 * std::pow(nJpsi + nBkg, 1.5)) * nJpsiError,
+          2
+        )
+        +
+        std::pow(
+          nJpsi /
+          (2.0 * std::pow(nJpsi + nBkg, 1.5)) * nBkgError,
+          2
+        )
+      );
+      std::cout << "setting chi2ndf = " << chi2ndf << std::endl;
+      std::cout << "setting Jpsi peak = " << jpsiPeak << std::endl;
+      std::cout << "setting Jpsi width = " << jpsiWidth << std::endl;
+      std::cout << "setting nJpsi = " << nJpsi << std::endl;
+      std::cout << "setting s/b = " << s_over_b << std::endl;
+      std::cout << "setting significance = " << significance << std::endl;
+      TH1D *hChi2ndfClone = (TH1D*)hChi2ndf->Clone(Form("hChi2ndf_%i_%i", iChi2, iPtBin));
+      TH1D *hJpsiPeaksClone = (TH1D*)hJpsiPeaks->Clone(Form("hJpsiPeaks_%i_%i", iChi2, iPtBin));
+      TH1D *hJpsiWidthsClone = (TH1D*)hJpsiWidths->Clone(Form("hJpsiWidths_%i_%i", iChi2, iPtBin));
+      TH1D *h_nJpsiClone = (TH1D*)h_nJpsi->Clone(Form("h_nJpsi_%i_%i", iChi2, iPtBin));
+      TH1D *h_s_over_bClone = (TH1D*)h_s_over_b->Clone(Form("h_s_over_b_%i_%i", iChi2, iPtBin));
+      TH1D *hsignificanceClone = (TH1D*)hsignificance->Clone(Form("hsignificance_%i_%i", iChi2, iPtBin));
+      hChi2ndfClone->SetLineColor(vLineColours[iPtBin]);
+      hJpsiPeaksClone->SetLineColor(vLineColours[iPtBin]);
+      hJpsiWidthsClone->SetLineColor(vLineColours[iPtBin]);
+      h_nJpsiClone->SetLineColor(vLineColours[iPtBin]);
+      h_s_over_bClone->SetLineColor(vLineColours[iPtBin]);
+      hsignificanceClone->SetLineColor(vLineColours[iPtBin]);
+      hChi2ndfClone->SetBinContent(iChi2 + 1, chi2ndf);
+      hChi2ndfClone->SetBinError(iChi2 + 1, 1e-9); // just so that we can see the data points better
+      hJpsiPeaksClone->SetBinContent(iChi2 + 1, jpsiPeak);
+      hJpsiPeaksClone->SetBinError(iChi2 + 1, jpsiPeakError);
+      hJpsiWidthsClone->SetBinContent(iChi2 + 1, jpsiWidth);
+      hJpsiWidthsClone->SetBinError(iChi2 + 1, jpsiWidthError);
+      h_nJpsiClone->SetBinContent(iChi2 + 1, nJpsi);
+      h_nJpsiClone->SetBinError(iChi2 + 1, nJpsiError);
+      h_s_over_bClone->SetBinContent(iChi2 + 1, s_over_b);
+      h_s_over_bClone->SetBinError(iChi2 + 1, s_over_bError);
+      hsignificanceClone->SetBinContent(iChi2 + 1, significance);
+      hsignificanceClone->SetBinError(iChi2 + 1, significanceError);
+      vChi2ndfClones.push_back(hChi2ndfClone);
+      vJpsiPeaksClones.push_back(hJpsiPeaksClone);
+      vJpsiWidthsClones.push_back(hJpsiWidthsClone);
+      v_nJpsiClones.push_back(h_nJpsiClone);
+      v_s_over_bClones.push_back(h_s_over_bClone);
+      vsignificanceClones.push_back(hsignificanceClone);
+    }
+    nPtBinsPassed += nPtBins;
   }
 
-  cJpsiPeaks->cd(); hJpsiPeaks->Draw("SAME HIST E");
-  cJpsiWidths->cd(); hJpsiWidths->Draw("SAME HIST E");
-  c_nJpsi->cd(); h_nJpsi->Draw("SAME HIST E");
-  c_s_over_b->cd(); h_s_over_b->Draw("SAME HIST E");
+  TLegend *leg = new TLegend(0.70, 0.70, 0.90, 0.90);
+  for (int i = 0; (i < vLineColours.size() && i < nPtBins); i++) {
+      std::string binLabel = vBinLabels[i] + " GeV/c";
+      // create a dummy object just to show the colour
+      TH1D *hDummy = new TH1D(Form("hDummy_%d", i), "", 1, 0, 1);
+      hDummy->SetLineColor(vLineColours[i]);
+      hDummy->SetLineWidth(3);
+      leg->AddEntry(hDummy, binLabel.c_str(), "l");
+  }
+
+  cChi2ndf->cd(); for (auto h : vChi2ndfClones) h->Draw("APE SAME"); leg->Draw();
+  cJpsiPeaks->cd(); for (auto h : vJpsiPeaksClones) h->Draw("APE SAME"); leg->Draw();
+  cJpsiWidths->cd(); for (auto h : vJpsiWidthsClones) h->Draw("APE SAME"); leg->Draw();
+  c_nJpsi->cd(); for (auto h : v_nJpsiClones) h->Draw("APE SAME"); leg->Draw();
+  c_s_over_b->cd(); for (auto h : v_s_over_bClones) h->Draw("APE SAME"); leg->Draw();
+  csignificance->cd(); for (auto h : vsignificanceClones) h->Draw("APE SAME"); leg->Draw();
 
   // TODO: add pT binning here too in name
   std::string outputChi2MatchingName;
@@ -141,10 +268,12 @@ void StudyChi2Matching(bool ispO=false, bool isMC=false, const char *caseName = 
   else { outputChi2MatchingName = "output/output_chi2Scan_OO.pdf"; }
   TCanvas *cdummy = new TCanvas("cdummy", "cdummy", 800, 600);
   cdummy->SaveAs(Form("%s(", outputChi2MatchingName.c_str()));
+  cChi2ndf->SaveAs(outputChi2MatchingName.c_str());
   cJpsiPeaks->SaveAs(outputChi2MatchingName.c_str());
   cJpsiWidths->SaveAs(outputChi2MatchingName.c_str());
   c_nJpsi->SaveAs(outputChi2MatchingName.c_str());
   c_s_over_b->SaveAs(outputChi2MatchingName.c_str());
+  csignificance->SaveAs(outputChi2MatchingName.c_str());
   cdummy->SaveAs(Form("%s)", outputChi2MatchingName.c_str()));
 }
 
@@ -264,7 +393,10 @@ void signalExtraction(Chi2ScanResults &chi2ScanResults, bool ispO, bool isMC, co
     resultsFit["chi2Max"] = cutVector[j].chi2.Max;
 
     // Study certain parameters as a function of matching chi2
+    chi2ScanResults.vChi2ndf.push_back(resultsFit["chi2ndf"]);
     chi2ScanResults.vChi2Values.push_back(resultsFit["chi2Max"]);
+    chi2ScanResults.vPtMinValues.push_back(resultsFit["ptMin"]);
+    chi2ScanResults.vPtMaxValues.push_back(resultsFit["ptMax"]);
     chi2ScanResults.vJpsiPeaks.push_back(resultsFit["mean_mass"]);
     chi2ScanResults.vJpsiPeaksErrors.push_back(resultsFit["mean_mass_err"]);
     chi2ScanResults.vJpsiWidths.push_back(resultsFit["sigma_mass"]);

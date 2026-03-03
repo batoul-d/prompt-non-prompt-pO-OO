@@ -298,19 +298,26 @@ bool setParameters(map<string, string> row, struct KinCuts& cut, map<string, str
       cut.chi2.Min = v.at(0); 
       cut.chi2.Max = v.at(1);
     }
-      else if (label=="cent"){
-        if (col->second=="" || col->second.find("-")==std::string::npos) {
-          cout << "[ERROR] Input column 'cent' has invalid value: " << col->second << endl; return false;
-        }
-        std::vector<double> v;
-        if(!parseString(col->second, "-", v)) { return false; }
-        if (v.size()!=2) {
-          cout << "[ERROR] Input column 'cent' has incorrect number of values, it should have 2 values but has: " << v.size() << endl; return false;
-        }
-        cut.cent.Start = (int) (v.at(0));
-        cut.cent.End = (int) (v.at(1));
+    else if (label=="cent"){
+      if (col->second=="" || col->second.find("-")==std::string::npos) {
+        cout << "[ERROR] Input column 'cent' has invalid value: " << col->second << endl; return false;
+      }
+      std::vector<double> v;
+      if(!parseString(col->second, "-", v)) { return false; }
+      if (v.size()!=2) {
+        cout << "[ERROR] Input column 'cent' has incorrect number of values, it should have 2 values but has: " << v.size() << endl; return false;
+      }
+      cut.cent.Start = (int) (v.at(0));
+      cut.cent.End = (int) (v.at(1));
     }
-    else if (label.find("fit")!=std::string::npos || label.find("model")!=std::string::npos){ //fitStat, modelSig, modelBkg
+    else if (label == "doIterativeFit") {
+      string val = col->second;
+      // convert to 0/1 (if not already)
+      if (val == "true") val = "1";
+      else if (val == "false") val = "0";
+      parIni[col->first] = val;
+    }
+    else if (label.find("model") != std::string::npos || label == "fitStat") {
       if (col->second=="") {
         cout << "[ERROR] Input column "<<label<<" has empty value" << endl; return false;
       }
