@@ -38,6 +38,7 @@ void plotResult(const char *caseName = "nominal", string axisName = "pt", int in
 
 void StudyChi2Matching(bool ispO=false, bool isMC=false, const char *caseName = "nominal", bool remakeDS = false, bool fitMass1D=false, bool fitTauz1D=false, bool fit2D=true, bool plotResults = false) {
   gSystem->Load("RooExtCBShape.cxx+");
+  std::cout << "[ERROR] in case fits fail (symptom: segmentation fault): increase number of statistics per bin (e.g. by loosening the chi2 cut)" << std::endl;
   //cout<<"plotResults = "<<plotResults<<endl;
   Chi2ScanResults chi2ScanResults;
   if (fitMass1D)
@@ -64,10 +65,15 @@ void StudyChi2Matching(bool ispO=false, bool isMC=false, const char *caseName = 
   // Now plot several variables of interest as a function of the chi2 cut
   // number of chi2 cuts that were used
   int nChi2 = chi2ScanResults.vChi2Values.size();
-  int ptGlobalMax = 15;
-  int nPtBins;
+  // int ptGlobalMax = 14;
+  int nPtBins = -999;
 
+  // Global max is the maximum element in the vector
   std::vector<int> vPtMaxValues = chi2ScanResults.vPtMaxValues;
+int ptGlobalMax = *std::max_element(vPtMaxValues.begin(), vPtMaxValues.end());
+
+  
+  
   for (int iPtBin = 0; iPtBin < vPtMaxValues.size(); iPtBin++) {
     int ptBinMax = vPtMaxValues[iPtBin];
     if (ptBinMax == ptGlobalMax) { 
@@ -75,8 +81,22 @@ void StudyChi2Matching(bool ispO=false, bool isMC=false, const char *caseName = 
       break; 
     }
   }
-  std::cout << ">>> total number of chi2 bins = " << nChi2 << std::endl;
-  std::cout << ">>> total number of pT bins = " << nPtBins << std::endl;
+  
+  
+
+
+// Number of pT bins is simply the vector size
+// int nPtBins = vPtMaxValues.size();
+
+int nChi2Points = chi2ScanResults.vChi2Values.size() / nPtBins;
+if (chi2ScanResults.vChi2Values.size() % nPtBins != 0) {
+    std::cerr << "ERROR: inconsistent chi2/pT grid!" << std::endl;
+    return;
+}
+
+std::cout << ">>> ptGlobalMax = " << ptGlobalMax << std::endl;
+std::cout << ">>> total number of pT bins = " << nPtBins << std::endl;
+std::cout << ">>> total number of chi2 bins = " << nChi2 << std::endl;
 
   // TODO: this can be done with really just one canvas and histogram
 
@@ -124,7 +144,7 @@ void StudyChi2Matching(bool ispO=false, bool isMC=false, const char *caseName = 
   if (ispO) { hTemplate_s_over_b->SetTitle(Form("signal/background for pO")); }
   else { hTemplate_s_over_b->SetTitle(Form("signal/background for OO")); }
   hTemplate_s_over_b->GetXaxis()->SetTitle("maximum matching chi2 cut");
-  hTemplate_s_over_b->GetYaxis()->SetRangeUser(0, 1.2);
+  hTemplate_s_over_b->GetYaxis()->SetRangeUser(0, 2.0);
 
   if (ispO) { hTemplatesignificance->SetTitle(Form("significance for pO")); }
   else { hTemplatesignificance->SetTitle(Form("significance for OO")); }
@@ -138,7 +158,7 @@ void StudyChi2Matching(bool ispO=false, bool isMC=false, const char *caseName = 
   c_s_over_b->cd(); hTemplate_s_over_b->Draw("HIST");
   csignificance->cd(); hTemplatesignificance->Draw("HIST");
 
-  std::vector<int> vLineColours = {1, 2, 6, 8, 9, 10};
+  std::vector<int> vLineColours = {1, 2, 6, 8, 9, 46};
   std::vector<std::string> vBinLabels;
   std::vector<TH1D*> vChi2ndfClones;
   std::vector<TH1D*> vJpsiPeaksClones;
@@ -154,14 +174,16 @@ void StudyChi2Matching(bool ispO=false, bool isMC=false, const char *caseName = 
     // This chi2 is the matching chi2 !
     int chi2 = chi2ScanResults.vChi2Values[iChi2 * nPtBins];
     std::cout << "chi2 = " << chi2 << std::endl;
-    if (iChi2 % 5 == 0) {
+    if (iChi2 % 5 == 0) { // draw label every 5 entries (for readability)
       const char *lbl = Form("%d", chi2);
+      hTemplateChi2ndf->GetXaxis()->SetBinLabel(iChi2 + 1, lbl);
       hTemplateJpsiPeaks->GetXaxis()->SetBinLabel(iChi2 + 1, lbl);
       hTemplateJpsiWidths->GetXaxis()->SetBinLabel(iChi2 + 1, lbl);
       hTemplate_nJpsi->GetXaxis()->SetBinLabel(iChi2 + 1, lbl);
       hTemplate_s_over_b->GetXaxis()->SetBinLabel(iChi2 + 1, lbl);
       hTemplatesignificance->GetXaxis()->SetBinLabel(iChi2 + 1, lbl);
     } else {
+      hTemplateChi2ndf->GetXaxis()->SetBinLabel(iChi2 + 1, "");
       hTemplateJpsiPeaks->GetXaxis()->SetBinLabel(iChi2 + 1, "");
       hTemplateJpsiWidths->GetXaxis()->SetBinLabel(iChi2 + 1, "");
       hTemplate_nJpsi->GetXaxis()->SetBinLabel(iChi2 + 1, "");
