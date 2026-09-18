@@ -142,7 +142,8 @@ void buildPDF_mass(RooWorkspace* ws, map<string, string> parIni, bool isMC){
   
   // Combine the components into a composite model
   RooAddPdf* totPDF_mass = new RooAddPdf ("totPDF_mass", "model for mass fit", RooArgList(*ws->pdf("jpsiPDF_mass"), *ws->pdf("psi2sPDF_mass"), *ws->pdf("bkgPDF_mass")));
-  if (isMC) totPDF_mass = new RooAddPdf ("totPDF_mass", "model for mass fit", RooArgList(*ws->pdf("jpsiPDF_mass"), *ws->pdf("psi2sPDF_mass")));
+  if (isMC) totPDF_mass = new RooAddPdf ("totPDF_mass", "model for mass fit", RooArgList(*ws->pdf("jpsiPDF_mass")));
+  // if (isMC) totPDF_mass = new RooAddPdf ("totPDF_mass", "model for mass fit", RooArgList(*ws->pdf("jpsiPDF_mass"), *ws->pdf("psi2sPDF_mass")));
   ws->import(*totPDF_mass);
 
 }
@@ -156,12 +157,22 @@ void buildPDF_tauzRes(RooWorkspace* ws, map<string, string> parIni){
   else if (parIni["model_tauzRes"]=="CB") {
     ws->factory("RooCBShape::tauzResPDF(tauz, mean_tauzRes, sigma_tauzRes, alpha_tauzRes, n_tauzRes)");
   }
+  else if (parIni["model_tauzRes"] == "Gauss2") {
+    ws->factory("Gaussian::gauss0_tauzRes(tauz, mean_tauzRes, sigma0_tauzRes)");
+    ws->factory("Gaussian::gauss1_tauzRes(tauz, mean_tauzRes, sigma1_tauzRes)");
+    ws->factory("SUM::tauzResPDF(fGaus0_tauzRes*gauss0_tauzRes, gauss1_tauzRes)");
+
+    ws->factory("RooGaussModel::gauss0(tauz, mean_tauzRes, sigma0_tauzRes)");
+    ws->factory("RooGaussModel::gauss1(tauz, mean_tauzRes, sigma1_tauzRes)");
+
+    ws->factory("RooAddModel::tauzResModel({gauss0, gauss1},{fGaus0_tauzRes})");
+  }
   else if (parIni["model_tauzRes"]=="Gauss3") {
     ws->factory("Gaussian::gauss0_tauzRes(tauz, mean_tauzRes, sigma0_tauzRes)");
     ws->factory("Gaussian::gauss1_tauzRes(tauz, mean_tauzRes, sigma1_tauzRes)");
     ws->factory("Gaussian::gauss2_tauzRes(tauz, mean_tauzRes, sigma2_tauzRes)");
     ws->factory("expr::fGaus1m01_tauzRes('1 - (fGaus0_tauzRes + fGaus1_tauzRes)', {fGaus0_tauzRes, fGaus1_tauzRes})");
-    ws->factory("SUM::tauzResPDF(fGaus0_tauzRes*gauss0_tauzRes, fGaus1_tauzRes*gauss1_tauzRes, fGaus1m01_tauzRes*gauss2_tauzRes)");
+    ws->factory("SUM::tauzResPDF(fGaus0_tauzRes*gauss0_tauzRes, fGaus1_tauzRes*gauss1_tauzRes, gauss2_tauzRes)");
     
     ws->factory("RooGaussModel::gauss0(tauz, mean_tauzRes, sigma0_tauzRes)");
     ws->factory("RooGaussModel::gauss1(tauz, mean_tauzRes, sigma1_tauzRes)");
@@ -264,7 +275,7 @@ void setDefaultParameters(map<string, string>& parIni, double nEntriesDS){
   varMap["c4_mass"] = {0,-2,2};
   
   varMap["xMaxRes"] = {0, -0.02, 0.02};
-  varMap["mean_tauzRes"] = {0,-0.1,0.1};
+  varMap["mean_tauzRes"] = {0,-0.01,0.01};
   varMap["sigma_tauzRes"] = {0.00045,0.0002,0.0010};
   varMap["alpha_tauzRes"] = {1,0.,3};
   varMap["n_tauzRes"] = {1.5,0.,10};
@@ -272,8 +283,11 @@ void setDefaultParameters(map<string, string>& parIni, double nEntriesDS){
   varMap["sigma1_tauzRes"] = {0.00045,0.0002,0.0010};
   varMap["sigma2_tauzRes"] = {0.00045,0.0002,0.0010};
   varMap["sigma3_tauzRes"] = {0.00045,0.0002,0.0030};
+  // TODO: add this to configuration, because for OO this might be quite different?
   varMap["fGaus0_tauzRes"] = {0.3, 0, 1};
   varMap["fGaus1_tauzRes"] = {0.06, 0, 1};
+  // varMap["fGaus0_tauzRes"] = {0.50, 0.05, 0.90};
+  // varMap["fGaus1_tauzRes"] = {0.40, 0.05, 0.90};
   varMap["fGaus2_tauzRes"] = {0.05, 0, 1};
   varMap["fGaus3_tauzRes"] = {0.05, 0, 1};
     
@@ -349,19 +363,20 @@ void fixParPDF(RooWorkspace* ws, RooFitResult* fitResult, map<string, string> &p
       fixedPars.push_back("alpha_tauzRes");
       fixedPars.push_back("n_tauzRes");
     }
-    else if (parIni["model_tauzRes"]=="Gauss3" || parIni["model_tauzRes"]=="Gauss4") {
+    else if (parIni["model_tauzRes"]=="Gauss2" || parIni["model_tauzRes"]=="Gauss3" || parIni["model_tauzRes"]=="Gauss4") {
       //RooRealVar* sigma0_free_tauzRes = (RooRealVar*) ws->var("sigma0_tauzRes");
       //ws->import(*sigma0_free_tauzRes, Rename("sigma0_free_tauzRes"));
-      
       fixedPars.push_back("sigma0_tauzRes");
       fixedPars.push_back("sigma1_tauzRes");
-      fixedPars.push_back("sigma2_tauzRes");
       fixedPars.push_back("fGaus0_tauzRes");
-      fixedPars.push_back("fGaus1_tauzRes");
+      if (parIni["model_tauzRes"]=="Gauss3") {
+        fixedPars.push_back("sigma2_tauzRes");
+        fixedPars.push_back("fGaus1_tauzRes");
+      }
       //fixedPars.push_back("fGaus2_tauzRes");
-      if (parIni["model_tauzRes"]=="Gauss4") {
-	fixedPars.push_back("sigma3_tauzRes");
-	fixedPars.push_back("fGaus2_tauzRes");
+      else if (parIni["model_tauzRes"]=="Gauss4") {
+	      fixedPars.push_back("sigma3_tauzRes");
+	      fixedPars.push_back("fGaus2_tauzRes");
       }
       for (const auto& par : fixedPars) {
 	RooRealVar* freePar = (RooRealVar*) ws->var(par);
@@ -412,34 +427,16 @@ void fixParPDF(RooWorkspace* ws, RooFitResult* fitResult, map<string, string> &p
 
     for (const auto& par : fixedPars) {
         fixValues[par] = 0.0;
-
         if (resTree->GetBranch(par.c_str())) { resTree->SetBranchAddress(par.c_str(), &fixValues[par]); }
-        else {
-            cout << "[ERROR] Parameter "
-                << par
-                << " not found in "
-                << resFileName << endl;
-        }
+        else { cout << "[ERROR] Parameter " << par << " not found in " << resFileName << endl; }
     }
 
     resTree->GetEntry(0);
 
     for (const auto& [name, val] : fixValues) {
         RooRealVar* var = ws->var(name.c_str());
-
-        if (!var) {
-            cout << "[ERROR] Variable "
-                << name
-                << " not found in workspace" << endl;
-            continue;
-        }
-
-        cout << "[INFO] Fixing "
-            << name
-            << " = "
-            << val
-            << endl;
-
+        if (!var) { cout << "[ERROR] Variable " << name << " not found in workspace" << endl; continue; }
+        cout << "[INFO] Fixing " << name << " = " << val << endl;
         var->setVal(val);
         var->setConstant(kTRUE);
     }
