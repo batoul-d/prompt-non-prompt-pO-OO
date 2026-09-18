@@ -42,9 +42,10 @@ map<string, double> SignalExtraction1Fit(map<string, string>& parIni, RooWorkspa
   
   // bulding the model from input
   BuildPDF(ws, parIni, isMC, fitMass, fitTauz);
+  cout << "PDFs correctly built" << endl;
   
   // Number of bins to be drawn (does not affect fitting)
-  int nBins = 300;
+  int nBins = 200;
 
   // Set range for plotting and fitting the mass
   double massMin = 2.4;
@@ -73,12 +74,13 @@ map<string, double> SignalExtraction1Fit(map<string, string>& parIni, RooWorkspa
     }
     else {
       RooFitResult* fitResult_mass = ws->pdf("totPDF_mass")->fitTo(*ws->data("data"), Extended(kTRUE), SumW2Error(true), RooFit::Save());
-      RooDataSet* sPlotDs = (RooDataSet*) ws->data("data")->Clone("data_sPlot");
-      RooStats::SPlot* sData = new RooStats::SPlot("sData", "sPlot", *sPlotDs, ws->pdf("totPDF_mass"), RooArgList(*ws->var("fJpsi_mass"), *ws->var("fBkg_mass")));
-      ws->import(*sPlotDs);
+      if (!isMC) { RooDataSet* sPlotDs = (RooDataSet*) ws->data("data")->Clone("data_sPlot");
+        RooStats::SPlot* sData = new RooStats::SPlot("sData", "sPlot", *sPlotDs, ws->pdf("totPDF_mass"), RooArgList(*ws->var("fJpsi_mass"), *ws->var("fBkg_mass")));
+        ws->import(*sPlotDs);
+      }
     }
   }
-  else if (!fitMass && fitTauz) {
+  else if (!fitMass && fitTauz && !isMC) {
     RooPlot* tauzResFrame = ws->var("tauz")->frame(Range(tauzMin, tauzMax), Bins(nBins));
     ws->data("sPlotDsSig")->plotOn(tauzResFrame, DataError(RooAbsData::SumW2));
     RooHist* hist = (RooHist*) tauzResFrame->getObject(0);
@@ -102,7 +104,13 @@ map<string, double> SignalExtraction1Fit(map<string, string>& parIni, RooWorkspa
    // RooFitResult* fitResult_tauz = ws->pdf("tauzSigPDF")->fitTo(*ws->data("sPlotDsSig"), Extended(kTRUE), SumW2Error(true), RooFit::Save());
    //cout<<"[INFO] done with the tauz Sig fit"<<endl;
   }
-  else if (fitMass && fitTauz) {
+  else if (!fitMass && fitTauz && isMC) {
+    // Fit the non-prompt signal: exponential decay convoluted with the detector resolution (MC)
+    RooFitResult* fitResult_tauzNpr = ws->pdf("tauzNprSigPDF")->fitTo(*ws->data("data"), Extended(kFALSE), SumW2Error(true), RooFit::Save());
+    cout << "[INFO] Done with MC non-prompt tauz fit" << endl;
+    // fitResult_tauzNpr->Print();
+  }
+  else if (fitMass && fitTauz && !isMC) {
 
     // Fix mass-shape parameters from the 1D mass fit
     fixParPDF(ws, NULL, parIni, ispO, rangeLabel, caseName, true, false, false);
@@ -197,14 +205,14 @@ map<string, double> SignalExtraction1Fit(map<string, string>& parIni, RooWorkspa
       padDist->cd();
       massFrame = ws->var("mass")->frame(Range(massMin, massMax), Bins(nBins));
       ws->data("data")->plotOn(massFrame, Name("data")); legendEntries["data"] = {"data","P"};
-      ws->pdf("totPDF_mass")->plotOn(massFrame, Name("background_mass"), Components(RooArgSet(*ws->pdf("bkgPDF_mass"))),DrawOption("F"), FillColor(kGray), LineColor(kGray)); legendEntries["background_mass"] = {"Background", "F"};
+      if (!isMC) { ws->pdf("totPDF_mass")->plotOn(massFrame, Name("background_mass"), Components(RooArgSet(*ws->pdf("bkgPDF_mass"))),DrawOption("F"), FillColor(kGray), LineColor(kGray)); legendEntries["background_mass"] = {"Background", "F"}; }
       ws->pdf("totPDF_mass")->plotOn(massFrame, Name("signalPsi2s_mass"), Components(RooArgSet(*ws->pdf("psi2sPDF_mass"))),DrawOption("L"), LineColor(kGreen+4)); //legendEntries["signalPsi2s_mass"] = {"#psi(2S) signal","L"};
       ws->pdf("totPDF_mass")->plotOn(massFrame, Name("signalJpsi_mass"), Components(RooArgSet(*ws->pdf("jpsiPDF_mass"))),DrawOption("L"), LineColor(kGreen+2)); legendEntries["signalJpsi_mass"] = {"J/#psi signal","L"};
       ws->pdf("totPDF_mass")->plotOn(massFrame, Name("total_mass"), LineColor(kRed)); legendEntries["total_mass"] = {"total fit","L"};
     }
     else {
       ws->data("data")->plotOn(massFrame, Name("data")); legendEntries["data"] = {"data","P"};
-      ws->pdf("totPDF_mass")->plotOn(massFrame, Name("background_mass"), Components(RooArgSet(*ws->pdf("bkgPDF_mass"))),DrawOption("F"), FillColor(kGray), LineColor(kGray)); legendEntries["background_mass"] = {"Background", "F"};
+      if (!isMC) { ws->pdf("totPDF_mass")->plotOn(massFrame, Name("background_mass"), Components(RooArgSet(*ws->pdf("bkgPDF_mass"))),DrawOption("F"), FillColor(kGray), LineColor(kGray)); legendEntries["background_mass"] = {"Background", "F"}; }
       ws->pdf("totPDF_mass")->plotOn(massFrame, Name("signalPsi2s_mass"), Components(RooArgSet(*ws->pdf("psi2sPDF_mass"))),DrawOption("L"), LineColor(kGreen+4)); //legendEntries["signalPsi2s_mass"] = {"#psi(2S) signal","L"};
       ws->pdf("totPDF_mass")->plotOn(massFrame, Name("signalJpsi_mass"), Components(RooArgSet(*ws->pdf("jpsiPDF_mass"))),DrawOption("L"), LineColor(kGreen+2)); legendEntries["signalJpsi_mass"] = {"J/#psi signal","L"};
       ws->pdf("totPDF_mass")->plotOn(massFrame, Name("total_mass"), LineColor(kRed)); legendEntries["total_mass"] = {"total fit","L"};
@@ -237,14 +245,15 @@ map<string, double> SignalExtraction1Fit(map<string, string>& parIni, RooWorkspa
       canFitChi2->SaveAs(Form("%s/massFit1D_%s_fitChi2Trend.pdf", outDirName.c_str(), rangeLabel.c_str()));
     }
   }
-  else if (fitTauz && !fitMass) {
+  else if (fitTauz && !fitMass && !isMC) {
     //tauz resolution first
     padDist->cd();
     ws->Print(); 
     ws->data("sPlotDsSig")->plotOn(tauzResFrame, Name("sPlotDsSig"), DataError(RooAbsData::SumW2)); legendEntries["sPlotDsSigNeg"] = {"sPlot signal-like data","P"};
     int nGauss = 0;
     //int gausColor[] = {kBlue, kGreen+2, kPink+4, kPink+4};
-    if (parIni["model_tauzRes"]=="Gauss3") nGauss = 3;
+    if (parIni["model_tauzRes"]=="Gauss2") nGauss = 2;
+    else if (parIni["model_tauzRes"]=="Gauss3") nGauss = 3;
     else if (parIni["model_tauzRes"]=="Gauss4") nGauss = 4;
     for (int i=0; i<nGauss; i++) {
       ws->pdf("tauzResPDF")->plotOn(tauzResFrame, Components(RooArgSet(*ws->pdf(Form("gauss%d_tauzRes", i)))), Name(Form("gauss%d_tauzRes", i)), LineColor(kBlue+i), LineStyle(2+i)); legendEntries[Form("gauss%d_tauzRes", i)] = {Form("gaussian %d", i),"L"};
@@ -317,7 +326,41 @@ map<string, double> SignalExtraction1Fit(map<string, string>& parIni, RooWorkspa
     can->SaveAs(Form("%s/tauzBkgFit1D_%s.pdf", outDirName.c_str(), rangeLabel.c_str()));
     
   }
-  else if (fitTauz && fitMass) {
+  else if (fitTauz && !fitMass && isMC) {
+    padDist->cd();
+    ws->data("data")->plotOn(tauzFrame, Name("data"), DataError(RooAbsData::SumW2));
+    legendEntries["data"] = {"MC non-prompt signal", "P"};
+    ws->pdf("tauzNprSigPDF")->plotOn(tauzFrame, Name("tauzNprSigPDF"), LineColor(kRed));
+    legendEntries["tauzNprSigPDF"] = {"non-prompt signal fit", "L"};
+
+    // Plot the resolution-convolved signal
+    RooHist* hpull = tauzFrame->pullHist();
+    RooPlot* pullFrame = ws->var("tauz")->frame(Title("Pull Distribution"), Range(tauzMin, tauzMax));
+    pullFrame->addPlotable(hpull, "P");
+
+    nPar = ws->pdf("tauzNprSigPDF")->getParameters(*ws->data("data"))->selectByAttrib("Constant", kFALSE)->getSize();
+    chi2ndf = tauzFrame->chiSquare(nPar);
+    cout << "[INFO] MC non-prompt tauz fit chi2 = " << chi2ndf << endl;
+
+    ws->data("data")->plotOn(tauzFrame, DataError(RooAbsData::SumW2));
+    fixFrameStyle(tauzFrame, true); tauzFrame->Draw();
+    TLatex* textVar = varLatex(ws, parIni, chi2ndf, fitMass, fitTauz, 0, 0, 0.57, 0.8);
+    textVar->Draw("same");
+
+    TLegend* leg = makePlotLegend(tauzFrame, legendEntries, 0.15, 0.7, 0.3, 0.85);
+    leg->Draw("same");
+    padPull->cd();
+    fixPullStyle(pullFrame);
+    pullFrame->Draw();
+    TLine* linePull = new TLine(tauzMin, 0, tauzMax, 0);
+    linePull->SetLineColor(kRed);
+    linePull->SetLineStyle(2);
+    linePull->Draw("same");
+    padDist->SetLogy();
+
+    can->SaveAs(Form("%s/tauzNprMCFit1D_%s.pdf", outDirName.c_str(), rangeLabel.c_str()));
+  }
+  else if (fitTauz && fitMass && !isMC) {
     padDist->cd();
     ws->data("data")->plotOn(massFrame, Name("data"), DataError(RooAbsData::SumW2)); legendEntries["data"] = {"data","P"};
     ws->pdf("totPDF_2D")->plotOn(massFrame, Name("background"), Components(RooArgSet(*ws->pdf("tauzMassTotBkgPDF"))),DrawOption("F"), FillColor(kGray), LineColor(kGray)); legendEntries["background"] = {"Background", "F"};

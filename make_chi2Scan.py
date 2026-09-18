@@ -1,6 +1,6 @@
 #!/usr/bin/env python3
 
-chi2_min = 10   # has to be at least 20 for pO
+chi2_min = 20   # has to be at least 20 for pO
 chi2_max = 75   # inclusive
 
 pt_bins = [

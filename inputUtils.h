@@ -70,6 +70,7 @@ RooDataSet* createDataset(bool ispO, bool isMC) {
   Int_t fIsAmbig2; fChain->SetBranchAddress("fIsAmbig2", &fIsAmbig2);
   Float_t fChi2MatchMCHMFT1; fChain->SetBranchAddress("fChi2MatchMCHMFT1", &fChi2MatchMCHMFT1);
   Float_t fChi2MatchMCHMFT2; fChain->SetBranchAddress("fChi2MatchMCHMFT2", &fChi2MatchMCHMFT2);
+  auto fMcDecision = static_cast<uint32_t>(0); fChain->SetBranchAddress("fMcDecision", &fMcDecision);
   
   fChain->SetBranchStatus("*",0);
   fChain->SetBranchStatus("fMass",1);
@@ -86,6 +87,8 @@ RooDataSet* createDataset(bool ispO, bool isMC) {
   fChain->SetBranchStatus("fIsAmbig2",1);
   fChain->SetBranchStatus("fChi2MatchMCHMFT1",1);
   fChain->SetBranchStatus("fChi2MatchMCHMFT2",1);
+  fChain->SetBranchStatus("fMcDecision",1);
+  
 
   RooRealVar* mass = new RooRealVar("mass","Mass_{#mu^{+}#mu^{-}}", 2, 4, "GeV/c^{2}");
   RooRealVar* pt = new RooRealVar("pt","p_{T, #mu^{+}#mu^{-}}", 0, 20, "GeV/c");
@@ -98,6 +101,7 @@ RooDataSet* createDataset(bool ispO, bool isMC) {
   RooDataSet* data = new RooDataSet("data", "data for dimuon pairs", *varSet);
 
   int n_entries = fChain->GetEntries();
+  // int n_entries = 10000000;
   for(int nEv = 0; nEv < n_entries; nEv++) {
     if (nEv%100000==0) cout<<"processing evt "<<nEv<<"/"<<n_entries<<endl;
     fChain->GetEntry(nEv);
@@ -114,6 +118,10 @@ RooDataSet* createDataset(bool ispO, bool isMC) {
     if (fChi2MatchMCHMFT1 > 500 || fChi2MatchMCHMFT2 >500) continue;
     if (fIsAmbig1 || fIsAmbig2) continue;
     
+    // only for MC. 5 means dimuons matched to our non-prompt signal
+    if (isMC) {
+      if (fMcDecision == 0) continue; }
+
     mass->setVal(fMass);
     pt->setVal(fPt);
     y->setVal(rap);

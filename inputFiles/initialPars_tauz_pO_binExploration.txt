@@ -2,7 +2,6 @@ pt;y;cent;chi2;fitStat;doIterativeFit;model_tauzRes;sigma0_tauzRes;sigma1_tauzRe
 0-20;2.5-3.6;0-100;0-50;todo;false;Gauss3;[0.00045,0.0001,0.005];[0.001,0.001,0.02];[0.004,0.001,0.1];SingleSidedDecay;TripleDecay;;
 0-1;2.5-3.6;0-100;0-25;todo;false;Gauss3;[0.00045,0.0001,0.005];[0.001,0.001,0.02];[0.004,0.001,0.1];SingleSidedDecay;TripleDecay;;
 1-2;2.5-3.6;0-100;0-25;todo;false;Gauss3;[0.00045,0.0001,0.005];[0.001,0.001,0.02];[0.004,0.001,0.1];SingleSidedDecay;TripleDecay;[1.,0.0,1.0];
-2-4;2.5-3.6;0-100;0-35;todo;false;Gauss3;[0.00045,0.0001,0.005];[0.001,0.001,0.02];[0.004,0.001,0.1];SingleSidedDecay;TripleDecay;[0.001,0.0,2.0];
-4-6;2.5-3.6;0-100;0-40;todo;false;Gauss3;[0.00045,0.0001,0.005];[0.001,0.001,0.02];[0.004,0.001,0.1];SingleSidedDecay;TripleDecay;[1.,0.0,2.0];
-6-10;2.5-3.6;0-100;0-50;todo;false;Gauss3;[0.00045,0.0001,0.005];[0.001,0.001,0.02];[0.004,0.001,0.1];SingleSidedDecay;TripleDecay;;
-10-14;2.5-3.6;0-100;0-70;todo;false;Gauss3;[0.00045,0.0001,0.005];[0.001,0.001,0.02];[0.004,0.001,0.1];SingleSidedDecay;TripleDecay;;
+2-3;2.5-3.6;0-100;0-35;todo;false;Gauss3;[0.00045,0.0001,0.005];[0.001,0.001,0.02];[0.004,0.001,0.1];SingleSidedDecay;TripleDecay;[0.001,0.0,2.0];
+3-5;2.5-3.6;0-100;0-40;todo;false;Gauss3;[0.00045,0.0001,0.005];[0.001,0.001,0.02];[0.004,0.001,0.1];SingleSidedDecay;TripleDecay;[1.,0.0,2.0];
+5-12;2.5-3.6;0-100;0-50;todo;false;Gauss3;[0.00045,0.0001,0.005];[0.001,0.001,0.02];[0.004,0.001,0.1];SingleSidedDecay;TripleDecay;;

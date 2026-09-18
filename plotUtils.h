@@ -31,7 +31,7 @@ string varFancyLabel(string varLabel="") {
   fancyLabels["fJpsi_mass"] = "N^{J/#psi}";
   fancyLabels["fPsi2s_mass"] = "N^{#psi(2S)}";
   fancyLabels["fBkg_mass"] = "N^{Bkg}";
-  
+
   fancyLabels["mean_mass"] = "m^{J/#psi}";
   fancyLabels["mean_psi2s"] = "m^{#psi(2S)}";
   fancyLabels["sigma_mass"] = "#sigma^{J/#psi}";
@@ -45,6 +45,7 @@ string varFancyLabel(string varLabel="") {
   fancyLabels["c3_mass"] = "c^{Bkg}_{3}";
   fancyLabels["c4_mass"] = "c^{Bkg}_{4}";
   
+  fancyLabels["xMaxRes"] = "x_{max}^{#tau_{z} res}";
   fancyLabels["mean_tauzRes"] = "#tau_{z0}";
   fancyLabels["sigma_tauzRes"] = "#sigma^{#tau_{z}}";
   fancyLabels["alpha_tauzRes"] = "#alpha^{#tau_{z}}";
@@ -180,7 +181,8 @@ TLatex *varLatex (RooWorkspace *ws, map<string, string> parIni, double chi2ndf, 
     }
     else if (!fitMass && fitTauz) {
       if (fitTauzRes) {
-	if (!(it->first.find("_tauzRes")!=std::string::npos)) continue; 
+        if (!(it->first.find("_tauzRes") != std::string::npos ||
+              it->first == "xMaxRes")) continue;
       }
       else if(fitTauzBkg) {
 	if (!(it->first.find("_tauzBkg")!=std::string::npos)) continue; 
@@ -190,12 +192,16 @@ TLatex *varLatex (RooWorkspace *ws, map<string, string> parIni, double chi2ndf, 
     }
     if (it->first.find("si2s")!=std::string::npos) continue;
     
-    if (ws->var(it->first.c_str())->getError()==0) continue;
+    if (ws->var(it->first.c_str())->getError()==0 && it->first != "xMaxRes") continue;
     cout<<"[INFO] writing variable "<<it->first.c_str()<<" = ";
     cout<<ws->var(it->first.c_str())->getValV();
     cout<<" err = "<<ws->var(it->first.c_str())->getError()<<endl;
     
-    textVar->DrawLatex(xText, yText, Form("%s = %g #pm  %g", varFancyLabel(it->first.c_str()).c_str(), ws->var(it->first.c_str())->getValV(), ws->var(it->first.c_str())->getError()));
+    std::cout << "it->first == " << it->first << std::endl;
+    if (it->first == "xMaxRes") {textVar->DrawLatex(xText, yText, Form("%s = %g", varFancyLabel(it->first.c_str()).c_str(), ws->var(it->first.c_str())->getValV()));
+    }
+    else { textVar->DrawLatex(xText, yText, Form("%s = %g #pm %g", varFancyLabel(it->first.c_str()).c_str(), ws->var(it->first.c_str())->getValV(), ws->var(it->first.c_str())->getError()));
+    }
     yText = yText-0.04;
   }
   return textVar;
