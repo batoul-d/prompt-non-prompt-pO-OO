@@ -180,25 +180,36 @@ void buildPDF_tauzRes(RooWorkspace* ws, map<string, string> parIni){
 
     ws->factory("RooAddModel::tauzResModel({gauss0, gauss1, gauss2},{fGaus0_tauzRes, fGaus1_tauzRes})");
   }
-
-    else if (parIni["model_tauzRes"]=="Gauss4") {
-    ws->factory("Gaussian::gauss0_tauzRes(tauz, mean_tauzRes, sigma0_tauzRes)");
-    ws->factory("Gaussian::gauss1_tauzRes(tauz, mean_tauzRes, sigma1_tauzRes)");
-    ws->factory("Gaussian::gauss2_tauzRes(tauz, mean_tauzRes, sigma2_tauzRes)");
-    ws->factory("Gaussian::gauss3_tauzRes(tauz, mean_tauzRes, sigma3_tauzRes)");
-    ws->factory("expr::fGaus1m012_tauzRes('1 - (fGaus0_tauzRes + fGaus1_tauzRes + fGaus2_tauzRes)', {fGaus0_tauzRes, fGaus1_tauzRes, fGaus2_tauzRes})");
-    ws->factory("SUM::tauzResPDF(fGaus0_tauzRes*gauss0_tauzRes, fGaus1_tauzRes*gauss1_tauzRes, fGaus2_tauzRes*gauss2_tauzRes, fGaus1m012_tauzRes*gauss3_tauzRes)");
-
+  else if (parIni["model_tauzRes"]=="Gauss3VarMeans") {
+    ws->factory("Gaussian::gauss0_tauzRes(tauz, mean0_tauzRes, sigma0_tauzRes)");
+    ws->factory("Gaussian::gauss1_tauzRes(tauz, mean1_tauzRes, sigma1_tauzRes)");
+    ws->factory("Gaussian::gauss2_tauzRes(tauz, mean2_tauzRes, sigma2_tauzRes)");
+    ws->factory("expr::fGaus1m01_tauzRes('1 - (fGaus0_tauzRes + fGaus1_tauzRes)', {fGaus0_tauzRes, fGaus1_tauzRes})");
+    ws->factory("SUM::tauzResPDF(fGaus0_tauzRes*gauss0_tauzRes, fGaus1_tauzRes*gauss1_tauzRes, gauss2_tauzRes)");
     
-    ws->factory("RooGaussModel::gauss0(tauz, mean_tauzRes, sigma0_tauzRes)");
-    ws->factory("RooGaussModel::gauss1(tauz, mean_tauzRes, sigma1_tauzRes)");
-    ws->factory("RooGaussModel::gauss2(tauz, mean_tauzRes, sigma2_tauzRes)");
-    ws->factory("RooGaussModel::gauss3(tauz, mean_tauzRes, sigma3_tauzRes)");
+    ws->factory("RooGaussModel::gauss0(tauz, mean0_tauzRes, sigma0_tauzRes)");
+    ws->factory("RooGaussModel::gauss1(tauz, mean1_tauzRes, sigma1_tauzRes)");
+    ws->factory("RooGaussModel::gauss2(tauz, mean2_tauzRes, sigma2_tauzRes)");
 
-    ws->factory("RooAddModel::tauzResModel({gauss0, gauss1, gauss2, gauss3},{fGaus0_tauzRes, fGaus1_tauzRes, fGaus2_tauzRes})");
+    ws->factory("RooAddModel::tauzResModel({gauss0, gauss1, gauss2},{fGaus0_tauzRes, fGaus1_tauzRes})");
+  }
+  else if (parIni["model_tauzRes"]=="Gauss4") {
+  ws->factory("Gaussian::gauss0_tauzRes(tauz, mean_tauzRes, sigma0_tauzRes)");
+  ws->factory("Gaussian::gauss1_tauzRes(tauz, mean_tauzRes, sigma1_tauzRes)");
+  ws->factory("Gaussian::gauss2_tauzRes(tauz, mean_tauzRes, sigma2_tauzRes)");
+  ws->factory("Gaussian::gauss3_tauzRes(tauz, mean_tauzRes, sigma3_tauzRes)");
+  ws->factory("expr::fGaus1m012_tauzRes('1 - (fGaus0_tauzRes + fGaus1_tauzRes + fGaus2_tauzRes)', {fGaus0_tauzRes, fGaus1_tauzRes, fGaus2_tauzRes})");
+  ws->factory("SUM::tauzResPDF(fGaus0_tauzRes*gauss0_tauzRes, fGaus1_tauzRes*gauss1_tauzRes, fGaus2_tauzRes*gauss2_tauzRes, fGaus1m012_tauzRes*gauss3_tauzRes)");
+
+  ws->factory("RooGaussModel::gauss0(tauz, mean_tauzRes, sigma0_tauzRes)");
+  ws->factory("RooGaussModel::gauss1(tauz, mean_tauzRes, sigma1_tauzRes)");
+  ws->factory("RooGaussModel::gauss2(tauz, mean_tauzRes, sigma2_tauzRes)");
+  ws->factory("RooGaussModel::gauss3(tauz, mean_tauzRes, sigma3_tauzRes)");
+
+  ws->factory("RooAddModel::tauzResModel({gauss0, gauss1, gauss2, gauss3},{fGaus0_tauzRes, fGaus1_tauzRes, fGaus2_tauzRes})");
   }
 }
-void buildPDF_tauzBkg(RooWorkspace* ws, map<string, string> parIni){
+void buildPDF_tauzBkg(RooWorkspace* ws, map<string, string> parIni) {
   if (parIni["modelNpr_tauzBkg"]=="TripleDecay"){
     ws->factory("Decay::ssdNpr_tauzBkg(tauz, lambdaDssNpr_tauzBkg, tauzResModel, RooDecay::SingleSided)");
     ws->factory("Decay::dfNpr_tauzBkg(tauz, lambdaDfNpr_tauzBkg, tauzResModel, RooDecay::Flipped)");
@@ -212,12 +223,31 @@ void buildPDF_tauzBkg(RooWorkspace* ws, map<string, string> parIni){
   ws->factory("SUM::tauzBkgPDF(fb_tauzBkg*tauzNprBkgPDF, tauzPrBkgPDF)");
   
 }
+// legacy
+// downside in new version: would have to be defined seperately for each possible resolution function...
+/*
 void buildPDF_tauzSig(RooWorkspace* ws, map<string, string> parIni){
   if (parIni["modelNpr_tauzSig"]=="SingleSidedDecay"){
     ws->factory("Decay::tauzNprSigPDF(tauz, lambdaDssNpr_tauzSig, tauzResModel, RooDecay::SingleSided)");
   }
   ws->factory("SUM::tauzPrSigPDF(tauzResPDF)");
   ws->factory("SUM::tauzSigPDF(fb_tauzSig*tauzNprSigPDF, tauzPrSigPDF)");
+}
+*/
+void buildPDF_tauzSig(RooWorkspace* ws, map<string, string> parIni) {
+  if (parIni["modelNpr_tauzSig"] == "SingleSidedDecay") {
+    // resolution Gaussians
+    ws->factory("Decay::tauzNprGaus0(tauz, lambdaDssNpr_tauzSig, gauss0, RooDecay::SingleSided)");
+    ws->factory("Decay::tauzNprGaus1(tauz, lambdaDssNpr_tauzSig, gauss1, RooDecay::SingleSided)");
+    ws->factory("Decay::tauzNprGaus2(tauz, lambdaDssNpr_tauzSig, gauss2, RooDecay::SingleSided)");
+
+    // non-prompt
+    ws->factory("SUM::tauzNprSigPDF(fGaus0_tauzRes*tauzNprGaus0, fGaus1_tauzRes*tauzNprGaus1, tauzNprGaus2)");
+    // prompt
+    ws->factory("SUM::tauzPrSigPDF(tauzResPDF)");
+    // sum
+    ws->factory("SUM::tauzSigPDF(fb_tauzSig*tauzNprSigPDF, tauzPrSigPDF)");
+  }
 }
 
 void buildPDF_2D(RooWorkspace* ws, bool isMC){  
@@ -275,10 +305,13 @@ void setDefaultParameters(map<string, string>& parIni, double nEntriesDS){
   varMap["c4_mass"] = {0,-2,2};
   
   varMap["xMaxRes"] = {0, -0.02, 0.02};
-  varMap["mean_tauzRes"] = {0,-0.01,0.01};
+  varMap["mean_tauzRes"] = {0,-0.0005,0.0005};
   varMap["sigma_tauzRes"] = {0.00045,0.0002,0.0010};
   varMap["alpha_tauzRes"] = {1,0.,3};
   varMap["n_tauzRes"] = {1.5,0.,10};
+  varMap["mean0_tauzRes"] = {0,-0.05,0.05};
+  varMap["mean1_tauzRes"] = {0,-0.05,0.05};
+  varMap["mean2_tauzRes"] = {0,-0.05,0.05};
   varMap["sigma0_tauzRes"] = {0.00045,0.0002,0.0010};
   varMap["sigma1_tauzRes"] = {0.00045,0.0002,0.0010};
   varMap["sigma2_tauzRes"] = {0.00045,0.0002,0.0010};
@@ -292,7 +325,7 @@ void setDefaultParameters(map<string, string>& parIni, double nEntriesDS){
   varMap["fGaus3_tauzRes"] = {0.05, 0, 1};
     
   varMap["fb_tauzSig"] = {0.2, 0.01, 0.5};
-  varMap["lambdaDssNpr_tauzSig"] = {1., 0.01, 2.0};
+  varMap["lambdaDssNpr_tauzSig"] = {0.0016, 0.0001, 0.001};
   
   varMap["fDfssNpr_tauzBkg"] = {0.8, 0.2, 0.9};
   varMap["fDNpr_tauzBkg"] = {0.9, 0.2, 0.95};
@@ -363,7 +396,7 @@ void fixParPDF(RooWorkspace* ws, RooFitResult* fitResult, map<string, string> &p
       fixedPars.push_back("alpha_tauzRes");
       fixedPars.push_back("n_tauzRes");
     }
-    else if (parIni["model_tauzRes"]=="Gauss2" || parIni["model_tauzRes"]=="Gauss3" || parIni["model_tauzRes"]=="Gauss4") {
+    else if (parIni["model_tauzRes"]=="Gauss2" || parIni["model_tauzRes"]=="Gauss3" || parIni["model_tauzRes"]=="Gauss3VarMeans" || parIni["model_tauzRes"]=="Gauss4") {
       //RooRealVar* sigma0_free_tauzRes = (RooRealVar*) ws->var("sigma0_tauzRes");
       //ws->import(*sigma0_free_tauzRes, Rename("sigma0_free_tauzRes"));
       fixedPars.push_back("sigma0_tauzRes");
@@ -374,6 +407,13 @@ void fixParPDF(RooWorkspace* ws, RooFitResult* fitResult, map<string, string> &p
         fixedPars.push_back("fGaus1_tauzRes");
       }
       //fixedPars.push_back("fGaus2_tauzRes");
+      else if (parIni["model_tauzRes"]=="Gauss3VarMeans") {
+        fixedPars.push_back("mean0_tauzRes");
+        fixedPars.push_back("mean1_tauzRes");
+        fixedPars.push_back("mean2_tauzRes");
+        fixedPars.push_back("sigma2_tauzRes");
+        fixedPars.push_back("fGaus1_tauzRes");
+      }
       else if (parIni["model_tauzRes"]=="Gauss4") {
 	      fixedPars.push_back("sigma3_tauzRes");
 	      fixedPars.push_back("fGaus2_tauzRes");
@@ -391,7 +431,6 @@ void fixParPDF(RooWorkspace* ws, RooFitResult* fitResult, map<string, string> &p
 	if (parIni.count(parFree)==0 || parIni[parFree]=="") {
 	  parIni[parFree] = Form("[%f,%f,%f]", freePar->getVal(), freePar->getVal()-freePar->getError(), freePar->getVal()+freePar->getError());
 	}
-	
       }
     }
   }
@@ -405,7 +444,6 @@ void fixParPDF(RooWorkspace* ws, RooFitResult* fitResult, map<string, string> &p
     }
   }
 
-  
   // TODO: add mc labels in file names
   if (!fitResult) {
     cout << "[INFO] fixing parameters from previous fits" << endl;

@@ -34,7 +34,7 @@
 
 //___________________________________________________________________________________________________________
 //___________________________________________________________________________________________________________
-map<string, double> SignalExtraction1Fit(map<string, string>& parIni, RooWorkspace* ws, const char *caseName, string rangeLabel, bool ispO, bool isMC, bool fitMass, bool fitTauz, struct KinCuts cutVector) {
+map<string, double> SignalExtraction1Fit(map<string, string>& parIni, RooWorkspace* ws, const char *caseName, string rangeLabel, bool ispO, bool isMC, bool fitMass, bool fitTauz, bool fitNpTauz, struct KinCuts cutVector) {
   gStyle->SetOptStat(0);
   // make output directory
   string outDirName = Form("output/outputFits_%s%s_%s", ispO?"pO":"OO", isMC?"_MC":"", caseName);
@@ -43,6 +43,11 @@ map<string, double> SignalExtraction1Fit(map<string, string>& parIni, RooWorkspa
   // bulding the model from input
   BuildPDF(ws, parIni, isMC, fitMass, fitTauz);
   cout << "PDFs correctly built" << endl;
+
+  // Perform the tauz background fit?
+  // NOTE: this is also set to 'false' and 'true' as part of the 2-step resolution fit. Might have to be changed below too.
+  bool doTauzBkgFit = true;
+  if (!doTauzBkgFit) cout << "[INFO] NOTE: RUNNING WITHOUT TAUZ BACKGROUND FIT -------------------------------------------" << endl;
   
   // Number of bins to be drawn (does not affect fitting)
   int nBins = 200;
@@ -54,6 +59,8 @@ map<string, double> SignalExtraction1Fit(map<string, string>& parIni, RooWorkspa
   // Set range for plotting the tau_z
   double tauzMin = -0.02;
   double tauzMax = 0.02;
+
+  int nParTauzRes = -1;
 
   // Set range for fitting the tau_z
   // TODO: Remove this again!!!
@@ -81,28 +88,47 @@ map<string, double> SignalExtraction1Fit(map<string, string>& parIni, RooWorkspa
     }
   }
   else if (!fitMass && fitTauz && !isMC) {
-    RooPlot* tauzResFrame = ws->var("tauz")->frame(Range(tauzMin, tauzMax), Bins(nBins));
+    doTauzBkgFit = false;
+    RooPlot* tauzResFrame = ws->var("tauz")->frame(Range(tauzMin, 0), Bins(nBins));
+    // RooPlot* tauzResFrame = ws->var("tauz")->frame(Range(tauzMin, tauzMax), Bins(nBins));
     ws->data("sPlotDsSig")->plotOn(tauzResFrame, DataError(RooAbsData::SumW2));
     RooHist* hist = (RooHist*) tauzResFrame->getObject(0);
-    ws->var("xMaxRes")->setVal(getMax(hist));
-    double xMaxRes = ws->var("xMaxRes")->getVal(); // to get the mean of the resolution function
+    // ws->var("xMaxRes")->setVal(getMax(hist));
+    // double xMaxRes = ws->var("xMaxRes")->getVal(); // to get the mean of the resolution function
+    double xMaxRes = 0.;
     // double xMaxRes = xMaxResOld + 0.0003;
     // double xMaxRes = -0.0003;
     cout << " [INFO] xMaxRes = " << xMaxRes << " ns" << endl;
     ws->var("mean_tauzRes")->setVal(xMaxRes);
-    ws->var("mean_tauzRes")->setConstant(kTRUE);
+    // ws->var("mean_tauzRes")->setConstant(kTRUE);
     ws->var("tauz")->setRange("neg", ws->var("tauz")->getMin(), xMaxRes);
     RooDataSet* sPlotDsNeg = (RooDataSet*) ws->data("sPlotDsSig")->reduce(Form("tauz < %f", xMaxRes));
     ws->import(*sPlotDsNeg, RooFit::Rename("sPlotDsSigNeg"));
     
     RooFitResult* fitResult_tauzRes = ws->pdf("tauzResPDF")->fitTo(*ws->data("sPlotDsSigNeg"), Extended(kFALSE), SumW2Error(true), RooFit::Save(), Range("neg"));
-    cout<<"[INFO] done with tauz resolution and now let's fix the parpameters to fit the bkg"<<endl;
-    fixParPDF(ws, fitResult_tauzRes, parIni, ispO, rangeLabel, caseName, 0, 1, 0);
-    //cout<<"[INFO] done with fixing the params"<<endl;
-   RooFitResult* fitResult_tauzBkg = ws->pdf("tauzBkgPDF")->fitTo(*ws->data("sPlotDsBkg"), Extended(kFALSE), SumW2Error(true), RooFit::Save());
-   //cout<<"[INFO] done with tauz bkg fit"<<endl;  
-   // RooFitResult* fitResult_tauz = ws->pdf("tauzSigPDF")->fitTo(*ws->data("sPlotDsSig"), Extended(kTRUE), SumW2Error(true), RooFit::Save());
-   //cout<<"[INFO] done with the tauz Sig fit"<<endl;
+    cout << "[INFO] done with tauz resolution and now let's fix the parpameters to fit the bkg" << endl;
+
+    // Do the signal fit of non-prompt decay (initialised from MC)
+    if (fitNpTauz) { 
+      doTauzBkgFit = true;
+      // Fix params from 1st step, with function as is done for 2D fit
+      RooFitResult* fitResult_tauz = ws->pdf("tauzSigPDF")->fitTo(*ws->data("sPlotDsSig"), Extended(kFALSE), SumW2Error(true), RooFit::Save(), Range(tauzMin, tauzMax));
+      cout << "[INFO] done with the tauz Sig fit" << endl;
+      // Before fixing the parameters, we should get the number of free parameters used in the fit for the chi2 later
+      nParTauzRes = ws->pdf("tauzSigPDF")->getParameters(*ws->data("data"))->selectByAttrib("Constant",kFALSE)->getSize();
+      fixParPDF(ws, fitResult_tauz, parIni, ispO, rangeLabel, caseName, 0, 1, 0);
+      cout << "[INFO] done with fixing the params for tauz resolution 2nd step" << endl;
+    }
+    else {
+      nParTauzRes = ws->pdf("tauzResPDF")->getParameters(*ws->data("data"))->selectByAttrib("Constant",kFALSE)->getSize();
+      fixParPDF(ws, fitResult_tauzRes, parIni, ispO, rangeLabel, caseName, 0, 1, 0);
+      // Save params, as is done for the 2D fit with function
+      cout << "[INFO] done with fixing the params for tauz resolution 1st step" << endl;
+    }
+  
+    // Do the background fit using the resolution
+    if (doTauzBkgFit) { RooFitResult* fitResult_tauzBkg = ws->pdf("tauzBkgPDF")->fitTo(*ws->data("sPlotDsBkg"), Extended(kFALSE), SumW2Error(true), RooFit::Save()); }
+    cout << "[INFO] done with tauz bkg fit" << endl;
   }
   else if (!fitMass && fitTauz && isMC) {
     // Fit the non-prompt signal: exponential decay convoluted with the detector resolution (MC)
@@ -117,7 +143,7 @@ map<string, double> SignalExtraction1Fit(map<string, string>& parIni, RooWorkspa
     // Fix tauz-resolution parameters from the 1D tauz fit
     fixParPDF(ws, NULL, parIni, ispO, rangeLabel, caseName, false, true, false);
     // Fix tauz-background parameters from the 1D tauz fit
-    if (!isMC) { fixParPDF(ws, NULL, parIni, ispO, rangeLabel, caseName, false, false, true); }
+    if (!isMC && doTauzBkgFit) { fixParPDF(ws, NULL, parIni, ispO, rangeLabel, caseName, false, false, true); }
 
     RooFitResult* fitResult_tauzMass = ws->pdf("totPDF_2D")->fitTo(*ws->data("data"), Extended(kTRUE), SumW2Error(true), RooFit::Save());
   }
@@ -246,30 +272,53 @@ map<string, double> SignalExtraction1Fit(map<string, string>& parIni, RooWorkspa
     }
   }
   else if (fitTauz && !fitMass && !isMC) {
-    //tauz resolution first
+    // Draw tauz resolution first
     padDist->cd();
     ws->Print(); 
+    // change this line to display only the negative data points (or all data points)
     ws->data("sPlotDsSig")->plotOn(tauzResFrame, Name("sPlotDsSig"), DataError(RooAbsData::SumW2)); legendEntries["sPlotDsSigNeg"] = {"sPlot signal-like data","P"};
     int nGauss = 0;
-    //int gausColor[] = {kBlue, kGreen+2, kPink+4, kPink+4};
     if (parIni["model_tauzRes"]=="Gauss2") nGauss = 2;
-    else if (parIni["model_tauzRes"]=="Gauss3") nGauss = 3;
+    else if (parIni["model_tauzRes"]=="Gauss3" || parIni["model_tauzRes"]=="Gauss3VarMeans") nGauss = 3;
     else if (parIni["model_tauzRes"]=="Gauss4") nGauss = 4;
-    for (int i=0; i<nGauss; i++) {
-      ws->pdf("tauzResPDF")->plotOn(tauzResFrame, Components(RooArgSet(*ws->pdf(Form("gauss%d_tauzRes", i)))), Name(Form("gauss%d_tauzRes", i)), LineColor(kBlue+i), LineStyle(2+i)); legendEntries[Form("gauss%d_tauzRes", i)] = {Form("gaussian %d", i),"L"};
-    } 
-    
-    ws->pdf("tauzResPDF")->plotOn(tauzResFrame, Name("tauzResPDF"), LineColor(kRed)); legendEntries["tauzResPDF"] = {"total fit","L"};
-    
+    if (!fitNpTauz) {
+      for (int i=0; i<nGauss; i++) {
+        ws->pdf("tauzResPDF")->plotOn(tauzResFrame, Components(RooArgSet(*ws->pdf(Form("gauss%d_tauzRes", i)))), Name(Form("gauss%d_tauzRes", i)), LineColor(kBlue+i), LineStyle(2+i)); legendEntries[Form("gauss%d_tauzRes", i)] = {Form("gaussian %d", i),"L"};
+      } 
+      ws->pdf("tauzResPDF")->plotOn(tauzResFrame, Name("tauzResPDF"), LineColor(kRed)); legendEntries["tauzResPDF"] = {"total fit","L"};
+    }
+    // Draw non-prompt decay x resolution fit and components
+    else {
+      // ws->pdf("tauzResPDF")->plotOn(tauzResFrame, Name("tauzResPDF"), LineColor(kBlue), LineStyle(kDashed)); legendEntries["tauzResPDF"] = {"resolution fit","L"};
+      ws->pdf("tauzSigPDF")->plotOn(tauzResFrame, Components("tauzNprSigPDF"), Name("tauzNprSigPDF"), LineColor(kOrange+2), DrawOption("L")); legendEntries["tauzNprSigPDF"] = {"Non-prompt", "L"};
+      ws->pdf("tauzSigPDF")->plotOn(tauzResFrame, Components("tauzPrSigPDF"), Name("tauzPrSigPDF"), LineColor(kGreen+2), DrawOption("L")); legendEntries["tauzPrSigPDF"] = {"Prompt", "L"};
+      for (int i=0; i<nGauss; i++) {
+        ws->pdf("tauzSigPDF")->plotOn(tauzResFrame, Components(RooArgSet(*ws->pdf(Form("gauss%d_tauzRes", i)))), Name(Form("gauss%d_tauzRes", i)), LineColor(kBlue+i), LineStyle(2+i)); legendEntries[Form("gauss%d_tauzRes", i)] = {Form("gaussian %d", i),"L"};
+        ws->pdf("tauzSigPDF")->plotOn(tauzResFrame, Name("tauzSigPDF"), LineColor(kRed), DrawOption("L")); legendEntries["tauzSigPDF"] = {"Pr + Np signal fit", "L"};
+      }
+    }
+
     RooHist* hpull = tauzResFrame->pullHist();
     RooPlot* pullFrame = ws->var("tauz")->frame(Title("Pull Distribution"), Range(tauzMin, tauzMax));
     pullFrame->addPlotable(hpull,"P");
 
-    nPar = ws->pdf("tauzResPDF")->getParameters(*ws->data("data"))->selectByAttrib("Constant",kFALSE)->getSize();
-    chi2ndf = tauzResFrame->chiSquare(nPar);
+    // Calculate chi2 with number of parameters from before fixing them
+    /*
+    RooPlot* tauzResChi2Frame = ws->var("tauz")->frame(Range(tauzMin, 0), Bins(nBins/2));
+    ws->data("sPlotDsSigNeg")->plotOn(tauzResChi2Frame, DataError(RooAbsData::SumW2));
+    ws->pdf("tauzResPDF")->plotOn(tauzResChi2Frame);
+    chi2ndf = tauzResChi2Frame->chiSquare(nParTauzRes);
+    std::cout << "tauzRes chi2/ndf old = " << tauzResChi2Frame->chiSquare(nParTauzRes/6) << std::endl;
+    std::cout << "[INFO] tauzRes floating parameters = " << nParTauzRes << std::endl;
+    std::cout << "[INFO] tauzRes chi2/ndf = " << chi2ndf << std::endl;
+    */
+
+    // previous calculation (doesn't take into account the range?)
+    // nPar = ws->pdf("tauzResPDF")->getParameters(*ws->data("data"))->selectByAttrib("Constant",kFALSE)->getSize();
+    chi2ndf = tauzResFrame->chiSquare(nParTauzRes);
     std::cout << "fit chi2 = " << chi2ndf << std::endl;
-    
-    ws->data("sPlotDsSig")->plotOn(tauzResFrame, DataError(RooAbsData::SumW2));
+
+    // ws->data("sPlotDsSigNeg")->plotOn(tauzResFrame, DataError(RooAbsData::SumW2));
     //padDist->cd();
     fixFrameStyle(tauzResFrame, true);
     tauzResFrame->Draw();
@@ -285,46 +334,54 @@ map<string, double> SignalExtraction1Fit(map<string, string>& parIni, RooWorkspa
     // TLine* linePull = new TLine(ws->var("tauz")->getMin(), 0, ws->var("tauz")->getMax(),0);
     TLine* linePull = new TLine(tauzMin, 0, tauzMax, 0);
     linePull->SetLineColor(kRed); linePull->SetLineStyle(2); linePull->Draw("same");
-    //std::string pdfPath = "";
     padDist->SetLogy();
-    can->SaveAs(Form("%s/tauzResFit1D_%s.pdf", outDirName.c_str(), rangeLabel.c_str()));
+    if (fitNpTauz) cout << "HIJ IS AAN" << endl;
+    can->SaveAs(Form("%s/tauzResFit1D%s_%s.pdf", outDirName.c_str(), fitNpTauz?"_npTauz":"", rangeLabel.c_str()));
+    // ROOT file containing the editable objects
+    TFile *fOut = new TFile(Form("%s/tauzResFit1D%s_%s.root", outDirName.c_str(), fitNpTauz?"_npTauz":"", rangeLabel.c_str()), "RECREATE");
+    can->Write("can");
+    tauzResFrame->Write("tauzResFrame");
+    pullFrame->Write("pullFrame");
+    ws->Write("ws");
+    fOut->Close();
 
     //////// then tauz Bkg
-    padDist->cd();
-    legendEntries.clear();
-    ws->data("sPlotDsBkg")->plotOn(tauzBkgFrame, Name("sPlotDsBkg"), DataError(RooAbsData::SumW2)); legendEntries["sPlotDsBkg"] = {"sPlot background-like data","P"};
-    ws->pdf("tauzBkgPDF")->plotOn(tauzBkgFrame, Name("tauzNprBkgPDF"), Components(RooArgSet(*ws->pdf("tauzNprBkgPDF"))),DrawOption("L"), LineColor(kBlue)); legendEntries["tauzNprBkgPDF"] = {"non-prompt-like", "L"};
-    ws->pdf("tauzBkgPDF")->plotOn(tauzBkgFrame, Name("tauzPrBkgPDF"), Components(RooArgSet(*ws->pdf("tauzPrBkgPDF"))),DrawOption("L"), LineColor(kGreen+2)); legendEntries["tauzPrBkgPDF"] = {"prompt-like", "L"};
-    ws->pdf("tauzBkgPDF")->plotOn(tauzBkgFrame, Name("tauzBkgPDF"), LineColor(kRed)); legendEntries["tauzBkgPDF"] = {"total fit","L"};
-    
-    RooHist* hpullBkg = tauzBkgFrame->pullHist();
-    RooPlot* pullBkgFrame = ws->var("tauz")->frame(Title("Pull Distribution"), Range(tauzMin, tauzMax));
-    pullBkgFrame->addPlotable(hpullBkg,"P");
+    if (doTauzBkgFit) {
+      padDist->cd();
+      legendEntries.clear();
+      ws->data("sPlotDsBkg")->plotOn(tauzBkgFrame, Name("sPlotDsBkg"), DataError(RooAbsData::SumW2)); legendEntries["sPlotDsBkg"] = {"sPlot background-like data","P"};
+      ws->pdf("tauzBkgPDF")->plotOn(tauzBkgFrame, Name("tauzNprBkgPDF"), Components(RooArgSet(*ws->pdf("tauzNprBkgPDF"))), DrawOption("L"), LineColor(kBlue)); legendEntries["tauzNprBkgPDF"] = {"non-prompt-like", "L"};
+      ws->pdf("tauzBkgPDF")->plotOn(tauzBkgFrame, Name("tauzPrBkgPDF"), Components(RooArgSet(*ws->pdf("tauzPrBkgPDF"))), DrawOption("L"), LineColor(kGreen+2)); legendEntries["tauzPrBkgPDF"] = {"prompt-like", "L"};
+      ws->pdf("tauzBkgPDF")->plotOn(tauzBkgFrame, Name("tauzBkgPDF"), LineColor(kRed)); legendEntries["tauzBkgPDF"] = {"total fit","L"};
+      
+      RooHist* hpullBkg = tauzBkgFrame->pullHist();
+      RooPlot* pullBkgFrame = ws->var("tauz")->frame(Title("Pull Distribution"), Range(tauzMin, tauzMax));
+      pullBkgFrame->addPlotable(hpullBkg,"P");
 
-    nPar = ws->pdf("tauzBkgPDF")->getParameters(*ws->data("data"))->selectByAttrib("Constant",kFALSE)->getSize();
-    chi2ndf = tauzBkgFrame->chiSquare(nPar);
-    std::cout << "fit chi2 = " << chi2ndf << std::endl;
-    
-    ws->data("sPlotDsBkg")->plotOn(tauzBkgFrame, DataError(RooAbsData::SumW2));
-    //padDist->cd();
-    fixFrameStyle(tauzBkgFrame, true);
-    tauzBkgFrame->Draw();
-    TLatex* textVarBkg = varLatex(ws, parIni, chi2ndf, fitMass, fitTauz, 0, 1, 0.57, 0.85); textVarBkg->Draw("same");
-    TLatex* textCutBkg = cutLatex(ispO, cutVector, 0.2,0.8); textCutBkg->Draw("same");
-    TLegend* legBkg = makePlotLegend(tauzBkgFrame, legendEntries, 0.15, 0.5, 0.3, 0.65); legBkg->Draw("same");
-    TLatex *textAliceBkg = AliceText(ispO); //textAlice->Draw("same");
-    
-    
-    padPull->cd();
-    fixPullStyle(pullBkgFrame);
-    pullBkgFrame->Draw();
-    // TLine* linePullBkg = new TLine(ws->var("tauz")->getMin(), 0, ws->var("tauz")->getMax(),0);
-    TLine* linePullBkg = new TLine(tauzMin, 0, tauzMax, 0);
-    linePullBkg->SetLineColor(kRed); linePullBkg->SetLineStyle(2); linePullBkg->Draw("same");
-    //std::string pdfPath = "";
-    //can->SetLogy();
-    can->SaveAs(Form("%s/tauzBkgFit1D_%s.pdf", outDirName.c_str(), rangeLabel.c_str()));
-    
+      nPar = ws->pdf("tauzBkgPDF")->getParameters(*ws->data("data"))->selectByAttrib("Constant",kFALSE)->getSize();
+      chi2ndf = tauzBkgFrame->chiSquare(nPar);
+      std::cout << "fit chi2 = " << chi2ndf << std::endl;
+      
+      ws->data("sPlotDsBkg")->plotOn(tauzBkgFrame, DataError(RooAbsData::SumW2));
+      //padDist->cd();
+      fixFrameStyle(tauzBkgFrame, true);
+      tauzBkgFrame->Draw();
+      TLatex* textVarBkg = varLatex(ws, parIni, chi2ndf, fitMass, fitTauz, 0, 1, 0.57, 0.85); textVarBkg->Draw("same");
+      TLatex* textCutBkg = cutLatex(ispO, cutVector, 0.2,0.8); textCutBkg->Draw("same");
+      TLegend* legBkg = makePlotLegend(tauzBkgFrame, legendEntries, 0.15, 0.5, 0.3, 0.65); legBkg->Draw("same");
+      TLatex *textAliceBkg = AliceText(ispO); //textAlice->Draw("same");
+      
+      
+      padPull->cd();
+      fixPullStyle(pullBkgFrame);
+      pullBkgFrame->Draw();
+      // TLine* linePullBkg = new TLine(ws->var("tauz")->getMin(), 0, ws->var("tauz")->getMax(),0);
+      TLine* linePullBkg = new TLine(tauzMin, 0, tauzMax, 0);
+      linePullBkg->SetLineColor(kRed); linePullBkg->SetLineStyle(2); linePullBkg->Draw("same");
+      //std::string pdfPath = "";
+      //can->SetLogy();
+      can->SaveAs(Form("%s/tauzBkgFit1D_%s.pdf", outDirName.c_str(), rangeLabel.c_str()));
+    }
   }
   else if (fitTauz && !fitMass && isMC) {
     padDist->cd();
@@ -412,7 +469,7 @@ map<string, double> SignalExtraction1Fit(map<string, string>& parIni, RooWorkspa
     pullTauzFrame->addPlotable(hpullTauz,"P");
 
     nPar = ws->pdf("totPDF_2D")->getParameters(*ws->data("data"))->selectByAttrib("Constant",kFALSE)->getSize();
-    chi2ndf = massFrame->chiSquare(nPar);
+    chi2ndf = tauzFrame->chiSquare(nPar);
     std::cout << "fit chi2 = " << chi2ndf << std::endl;
     
     ws->data("data")->plotOn(tauzFrame, DataError(RooAbsData::SumW2));
