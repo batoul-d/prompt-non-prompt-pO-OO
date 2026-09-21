@@ -20,22 +20,25 @@
 
 #include "SignalExtraction.C"
 
-void signalExtraction(bool ispO=true, bool isMC =false, const char *caseName = "nominal", bool remakeDS =false, bool fitMass=true, bool fitTauz=false);
+void signalExtraction(bool ispO=true, bool isMC =false, const char *caseName = "nominal", bool remakeDS =false, bool fitMass=true, bool fitTauz=false, bool fitNpTauz=false);
 void plotResult(bool ispO=true, const char *caseName = "nominal", string axisName = "pt", int incMinCent=0, int incMaxCent=100, float incMinPt=0., float incMaxPt=50., float incMinRap=-3.5, float incMaxRap=-2.5, float incMinChi2=0, float incMaxChi2=50, bool diffChi2=false, bool isMC=false);
 
 void InputToResults(bool ispO=true, bool isMC=false, const char *caseName = "nominal", bool remakeDS = false, bool fitMass1D=true, bool fitTauz1D=false, bool fit2D=false, bool plotResults = false) {
-  gSystem->Load("RooExtCBShape.cxx+");
-  //cout<<"plotResults = "<<plotResults<<endl;
+  gROOT->ProcessLine(".L RooExtCBShape.cxx+");
+
   if (fitMass1D) {
-    signalExtraction(ispO, isMC, caseName, remakeDS, true, false);
+    signalExtraction(ispO, isMC, caseName, remakeDS, true, false, false);
     remakeDS=false;
   }
   if (fitTauz1D) {
-    signalExtraction(ispO, isMC, caseName, remakeDS, false, true);
+    signalExtraction(ispO, isMC, caseName, remakeDS, false, true, false);
+    remakeDS=false;
+    // TODO: make new bool in main function to do this part
+    signalExtraction(ispO, isMC, caseName, remakeDS, false, true, true);
     remakeDS=false;
   }
   if (fit2D)
-    signalExtraction(ispO, isMC, caseName, remakeDS, true, true);
+    signalExtraction(ispO, isMC, caseName, remakeDS, true, true, false);
   
 
   if (plotResults) {
@@ -55,7 +58,7 @@ void InputToResults(bool ispO=true, bool isMC=false, const char *caseName = "nom
   
 }
 
-void signalExtraction(bool ispO, bool isMC, const char *caseName, bool remakeDS, bool fitMass, bool fitTauz) {
+void signalExtraction(bool ispO, bool isMC, const char *caseName, bool remakeDS, bool fitMass, bool fitTauz, bool fitNpTauz) {
   
   //do the fits or at least some of them
   vector< struct KinCuts >       cutVector;
@@ -110,7 +113,7 @@ void signalExtraction(bool ispO, bool isMC, const char *caseName, bool remakeDS,
     struct FitSummaryRow {
       double ptMin;
       double ptMax;
-
+      double fitChi2;
       double fb;
       double fb_err;
       double N_jpsi;
@@ -129,6 +132,10 @@ void signalExtraction(bool ispO, bool isMC, const char *caseName, bool remakeDS,
       double sigma2_tauzRes_err;
       double sigma3_tauzRes;
       double sigma3_tauzRes_err;
+      double fGaus0_tauzRes;
+      double fGaus0_tauzRes_err;
+      double fGaus1_tauzRes;
+      double fGaus1_tauzRes_err;
     };
     vector<FitSummaryRow> fitSummary;
 
@@ -186,7 +193,7 @@ void signalExtraction(bool ispO, bool isMC, const char *caseName, bool remakeDS,
     }
     
     resultsFit.clear();
-    resultsFit = SignalExtraction1Fit(parIniVector[j], ws, caseName, rangeLabel, ispO, isMC, fitMass, fitTauz, cutVector[j]);
+    resultsFit = SignalExtraction1Fit(parIniVector[j], ws, caseName, rangeLabel, ispO, isMC, fitMass, fitTauz, fitNpTauz, cutVector[j]);
     resultsFit["centMin"] = cutVector[j].cent.Start;
     resultsFit["centMax"] = cutVector[j].cent.End;
     resultsFit["ptMin"] = cutVector[j].pt.Min;
@@ -213,6 +220,7 @@ void signalExtraction(bool ispO, bool isMC, const char *caseName, bool remakeDS,
     summaryRow.ptMin = cutVector[j].pt.Min;
     summaryRow.ptMax = cutVector[j].pt.Max;
 
+    summaryRow.fitChi2 = getResult("chi2ndf");
     summaryRow.fb = getResult("b_jpsi_tauzMass");
     summaryRow.fb_err = getResult("b_jpsi_tauzMass_err");
     summaryRow.N_jpsi = getResult("fJpsi_tauzMass");
@@ -231,6 +239,10 @@ void signalExtraction(bool ispO, bool isMC, const char *caseName, bool remakeDS,
     summaryRow.sigma2_tauzRes_err = getResult("sigma2_tauzRes_err");
     summaryRow.sigma3_tauzRes = getResult("sigma3_tauzRes");
     summaryRow.sigma3_tauzRes_err = getResult("sigma3_tauzRes_err");
+    summaryRow.fGaus0_tauzRes = getResult("fGaus0_tauzRes");
+    summaryRow.fGaus0_tauzRes_err = getResult("fGaus0_tauzRes_err");
+    summaryRow.fGaus1_tauzRes = getResult("fGaus1_tauzRes");
+    summaryRow.fGaus1_tauzRes_err = getResult("fGaus1_tauzRes_err");
 
     fitSummary.push_back(summaryRow);
 
@@ -281,6 +293,7 @@ void signalExtraction(bool ispO, bool isMC, const char *caseName, bool remakeDS,
   // Header
   csvFile
     << "pT_bin (GeV/c),"
+    << "fit chi2 (last performed),"
     << "fb,"
     << "N_Jpsi,"
     << "Jpsi_mass (GeV/c2),"
@@ -289,19 +302,22 @@ void signalExtraction(bool ispO, bool isMC, const char *caseName, bool remakeDS,
     << "sigma0_tauzRes (ns),"
     << "sigma1_tauzRes (ns),"
     << "sigma2_tauzRes (ns),"
-    << "sigma3_tauzRes (ns),,"
+    << "sigma3_tauzRes (ns),"
+    << "fGaus0_tauzRes,"
+    << "fGaus1_tauzRes"
     << "\n";
 
   // Case name on second row
-  csvFile << caseName << ",,,,,,,,,,,,\n";
+  csvFile << caseName << ",,,,,,,,,,,\n";
 
   // Data rows
-  csvFile << std::setprecision(7);
+  csvFile << std::setprecision(5);
 
   for (const auto& row : fitSummary) {
 
     csvFile
       << "\"[" << row.ptMin << "," << row.ptMax << "]\","
+      << row.fitChi2 << ","
       << row.fb << " (" << row.fb_err << ")" << ","
       << row.N_jpsi << " (" << row.N_jpsi_err << ")" << ","
       << row.mean_mass << " (" << row.mean_mass_err << ")" << ","
@@ -310,10 +326,11 @@ void signalExtraction(bool ispO, bool isMC, const char *caseName, bool remakeDS,
       << row.sigma0_tauzRes << " (" << row.sigma0_tauzRes_err << ")" << ","
       << row.sigma1_tauzRes << " (" << row.sigma1_tauzRes_err << ")" << ","
       << row.sigma2_tauzRes << " (" << row.sigma2_tauzRes_err << ")" << ","
-      << row.sigma3_tauzRes << " (" << row.sigma3_tauzRes_err << ")"
+      << row.sigma3_tauzRes << " (" << row.sigma3_tauzRes_err << ")" << ","
+      << row.fGaus0_tauzRes << " (" << row.fGaus0_tauzRes_err << ")" << ","
+      << row.fGaus1_tauzRes << " (" << row.fGaus1_tauzRes_err << ")"
       << "\n";
   }
-
   csvFile.close();
 
   cout << "[INFO] Fit summary CSV written to: "
