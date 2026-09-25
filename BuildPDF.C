@@ -279,6 +279,7 @@ void buildPDF_2D(RooWorkspace* ws, bool isMC){
 }
 
 void setDefaultParameters(map<string, string>& parIni, double nEntriesDS){
+  // Only define the parameters if they will be used in one of the fit models
   std::map<std::string, std::string> modelMap;
   modelMap["modelBkg_mass"] = "ChevPol2";
   modelMap["modelSig_mass"] = "extCB";
@@ -298,38 +299,40 @@ void setDefaultParameters(map<string, string>& parIni, double nEntriesDS){
   varMap["fPsi2s_mass"] = {0.001*nEntriesDS, 0, 0.2*nEntriesDS};
   varMap["fBkg_mass"] = {0.1*nEntriesDS, 0, 2.0*nEntriesDS};
   
-  varMap["mean_mass"] = {3.096,2.9,3.3};
-  varMap["sigma_mass"] = {0.02,0,0.1};
-  varMap["alpha0_mass"] = {1.,0,5};
-  varMap["n0_mass"] = {3.,0,5};
-  varMap["alpha1_mass"] = {1.,0,5};
-  varMap["n1_mass"] = {3.,0,5};
+  varMap["mean_mass"] = {3.096, 2.9, 3.3};
+  varMap["sigma_mass"] = {0.02, 0, 0.1};
+  varMap["alpha0_mass"] = {1., 0, 5};
+  varMap["n0_mass"] = {3., 0, 5};
+  varMap["alpha1_mass"] = {1., 0, 5};
+  varMap["n1_mass"] = {3., 0, 5};
   
-  varMap["c0_mass"] = {0,-2,2};
-  varMap["c1_mass"] = {0,-2,2};
-  varMap["c2_mass"] = {0,-2,2};
-  varMap["c3_mass"] = {0,-2,2};
-  varMap["c4_mass"] = {0,-2,2};
+  varMap["c0_mass"] = {0, -2, 2};
+  varMap["c1_mass"] = {0, -2, 2};
+  varMap["c2_mass"] = {0, -2, 2};
+  varMap["c3_mass"] = {0, -2, 2};
+  varMap["c4_mass"] = {0, -2, 2};
   
   // TODO: uncomment these blocks after 2nd step fits are validated!!!
   varMap["xMaxRes"] = {0, -0.02, 0.02};
-  varMap["mean_tauzRes"] = {0,-0.0005,0.0005};
-  // varMap["mean_tauzRes"] = {0,0,0};
-  // varMap["sigma_tauzRes"] = {0.00045,0.0002,0.0010};
-  // varMap["alpha_tauzRes"] = {1,0.,3};
-  // varMap["n_tauzRes"] = {1.5,0.,10};
-  // varMap["mean0_tauzRes"] = {0,-0.05,0.05};
-  // varMap["mean1_tauzRes"] = {0,-0.05,0.05};
-  // varMap["mean2_tauzRes"] = {0,-0.05,0.05};
-  varMap["sigma0_tauzRes"] = {0.00045,0.0002,0.0010};
-  varMap["sigma1_tauzRes"] = {0.00045,0.0002,0.0010};
-  varMap["sigma2_tauzRes"] = {0.00045,0.0002,0.0010};
-  // varMap["sigma3_tauzRes"] = {0.00045,0.0002,0.0030};
-  // TODO: add this to configuration, because for OO this might be quite different?
-  varMap["fGaus0_tauzRes"] = {0.7, 0.5, 0.8};
-  varMap["fGaus1_tauzRes"] = {0.2, 0.1, 0.4};
-  // varMap["fGaus2_tauzRes"] = {0.05, 0, 1};
-  // varMap["fGaus3_tauzRes"] = {0.05, 0, 1};
+  varMap["mean_tauzRes"] = {0, -0.0005, 0.0005};
+  if (parIni["model_tauzRes"]=="extCB" || parIni["model_tauzRes"]=="CB") {
+    varMap["sigma_tauzRes"] = {0.00045, 0.0002, 0.0010};
+    varMap["alpha_tauzRes"] = {1, 0., 3};
+    varMap["n_tauzRes"] = {1.5, 0., 10};
+  }
+  if (parIni["model_tauzRes"] == "Gauss2" || parIni["model_tauzRes"] == "Gauss3" || parIni["model_tauzRes"] == "Gauss4") {
+    varMap["sigma0_tauzRes"] = {0.00045, 0.0002, 0.0010};
+    varMap["sigma1_tauzRes"] = {0.00045, 0.0002, 0.0010};
+    varMap["fGaus0_tauzRes"] = {0.7, 0.5, 0.8};
+  }
+  if (parIni["model_tauzRes"] == "Gauss3" || parIni["model_tauzRes"] == "Gauss4") {
+    varMap["sigma2_tauzRes"] = {0.00045, 0.0002, 0.0010};
+    varMap["fGaus1_tauzRes"] = {0.2, 0.1, 0.4};
+  }
+  if (parIni["model_tauzRes"] == "Gauss4") {
+    varMap["sigma3_tauzRes"] = {0.00045, 0.0002, 0.0030};
+    varMap["fGaus2_tauzRes"] = {0.05, 0, 1};
+  }
     
   // TODO: add this parameter to the input per bin ?
   varMap["fb_tauzSig"] = {0.1, 0.05, 0.2};
@@ -400,78 +403,74 @@ void fixParPDF(RooWorkspace* ws, RooFitResult* fitResult, map<string, string> &p
     }
   }
   else if (fromTauzResPDF) {
-    if (parIni["model_tauzRes"]=="extCB" || parIni["model_tauzRes"]=="CB") {
-      //fixedPars.push_back("mean_tauzRes");
+    if (parIni["model_tauzRes"] == "extCB" || parIni["model_tauzRes"] == "CB") {
       fixedPars.push_back("sigma_tauzRes");
       fixedPars.push_back("alpha_tauzRes");
       fixedPars.push_back("n_tauzRes");
     }
-    else if (parIni["model_tauzRes"]=="Gauss2" || parIni["model_tauzRes"]=="Gauss3" || parIni["model_tauzRes"]=="Gauss4") {
+
+    else if (parIni["model_tauzRes"] == "Gauss2" || parIni["model_tauzRes"] == "Gauss3" || parIni["model_tauzRes"] == "Gauss4") {
       if (!fromNpTauzResPDF) {
-        //RooRealVar* sigma0_free_tauzRes = (RooRealVar*) ws->var("sigma0_tauzRes");
-        //ws->import(*sigma0_free_tauzRes, Rename("sigma0_free_tauzRes"));
-        // fixedPars.push_back("mean_tauzRes");
         fixedPars.push_back("sigma0_tauzRes");
         fixedPars.push_back("sigma1_tauzRes");
         fixedPars.push_back("fGaus0_tauzRes");
-        if (parIni["model_tauzRes"]=="Gauss3") {
-          fixedPars.push_back("sigma2_tauzRes");
-          fixedPars.push_back("fGaus1_tauzRes");
-        }
       }
       else {
         biasedPars.push_back("mean_tauzRes");
         biasedPars.push_back("sigma0_tauzRes");
         biasedPars.push_back("sigma1_tauzRes");
         biasedPars.push_back("fGaus0_tauzRes");
-        if (parIni["model_tauzRes"]=="Gauss3") {
+      }
+      if (parIni["model_tauzRes"] == "Gauss3" || parIni["model_tauzRes"] == "Gauss4") {
+        if (!fromNpTauzResPDF) {
+          fixedPars.push_back("sigma2_tauzRes");
+          fixedPars.push_back("fGaus1_tauzRes");
+        }
+        else {
           biasedPars.push_back("sigma2_tauzRes");
           biasedPars.push_back("fGaus1_tauzRes");
         }
       }
-    if (parIni["model_tauzRes"]=="Gauss3VarMeans") {
+      if (parIni["model_tauzRes"] == "Gauss4") {
+        if (!fromNpTauzResPDF) {
+          fixedPars.push_back("sigma3_tauzRes");
+          fixedPars.push_back("fGaus2_tauzRes");
+        }
+        else {
+          biasedPars.push_back("sigma3_tauzRes");
+          biasedPars.push_back("fGaus2_tauzRes");
+        }
+      }
+    }
+    else if (parIni["model_tauzRes"] == "Gauss3VarMeans") {
       fixedPars.push_back("mean0_tauzRes");
       fixedPars.push_back("mean1_tauzRes");
       fixedPars.push_back("mean2_tauzRes");
       fixedPars.push_back("sigma2_tauzRes");
       fixedPars.push_back("fGaus1_tauzRes");
     }
-    if (parIni["model_tauzRes"]=="Gauss4") {
-      // TODO: correctly added bias parameters for 2nd step fit resoution?
-      if (!fromNpTauzResPDF) {
-        fixedPars.push_back("sigma3_tauzRes");
-        fixedPars.push_back("fGaus2_tauzRes");
-      }
-      else {
-        biasedPars.push_back("sigma3_tauzRes");
-        biasedPars.push_back("fGaus2_tauzRes");
-      }
-    }
-  for (const auto& par : fixedPars) {
-	RooRealVar* freePar = (RooRealVar*) ws->var(par);
-	if (!freePar) {
-	  std::cerr << "Warning: parameter " << par << " not found in workspace!\n";
-	  continue;
-	}
-	RooRealVar clonePar(*freePar, Form("free_%s", par.c_str()));
-	ws->import(clonePar);
 
-	string parFree = "free_" + par;
-	if (parIni.count(parFree)==0 || parIni[parFree]=="") {
-	  parIni[parFree] = Form("[%f,%f,%f]", freePar->getVal(), freePar->getVal()-freePar->getError(), freePar->getVal()+freePar->getError());
-	}
-      }
-    }
+  for (const auto& par : fixedPars) {
+    RooRealVar* freePar = dynamic_cast<RooRealVar*>(ws->var(par.c_str()));
+    if (!freePar) { std::cerr << "Warning: parameter " << par << " not found in workspace!\n"; continue; }
+
+    RooRealVar clonePar(*freePar, Form("free_%s", par.c_str()));
+    ws->import(clonePar);
+    string parFree = "free_" + par;
+
+    if (parIni.count(parFree) == 0 || parIni[parFree] == "") { parIni[parFree] = Form("[%f,%f,%f]", freePar->getVal(), freePar->getVal() - freePar->getError(), freePar->getVal() + freePar->getError()); }
   }
-  else if (fromTauzBkgPDF) {
-    if (parIni["modelNpr_tauzBkg"]=="TripleDecay") {
-      fixedPars.push_back("fDfssNpr_tauzBkg");
-      fixedPars.push_back("fDNpr_tauzBkg");
-      fixedPars.push_back("lambdaDssNpr_tauzBkg");
-      fixedPars.push_back("lambdaDdsNpr_tauzBkg");
-      fixedPars.push_back("lambdaDfNpr_tauzBkg");
-    }
+}
+
+else if (fromTauzBkgPDF) {
+  if (parIni["modelNpr_tauzBkg"] == "TripleDecay") {
+    fixedPars.push_back("fDfssNpr_tauzBkg");
+    fixedPars.push_back("fDNpr_tauzBkg");
+    fixedPars.push_back("lambdaDssNpr_tauzBkg");
+    fixedPars.push_back("lambdaDdsNpr_tauzBkg");
+    fixedPars.push_back("lambdaDfNpr_tauzBkg");
   }
+}
 
   // TODO: add mc labels in file names
   if (!fitResult) {

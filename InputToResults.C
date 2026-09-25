@@ -20,26 +20,29 @@
 
 #include "SignalExtraction.C"
 
-void signalExtraction(bool ispO=true, bool isMC =false, const char *caseName = "nominal", bool remakeDS =false, bool fitMass=true, bool fitTauz=false, bool fitNpTauz=false);
+void signalExtraction(bool ispO=true, bool isMC =false, const char *caseName = "nominal", bool remakeDS =false, bool fitMass=true, bool fitTauz=false, bool fitNpTauz=false, bool fitTauzBkg=false);
 void plotResult(bool ispO=true, const char *caseName = "nominal", string axisName = "pt", int incMinCent=0, int incMaxCent=100, float incMinPt=0., float incMaxPt=50., float incMinRap=-3.5, float incMaxRap=-2.5, float incMinChi2=0, float incMaxChi2=50, bool diffChi2=false, bool isMC=false);
 
-void InputToResults(bool ispO=true, bool isMC=false, const char *caseName = "nominal", bool remakeDS = false, bool fitMass1D=true, bool fitTauz1D=false, bool fit2D=false, bool plotResults = false) {
+void InputToResults(bool ispO=true, bool isMC=false, const char *caseName = "nominal", bool remakeDS = false, bool fitMass1D=true, bool fitTauz1D=false, bool fitNpTauz1D=false, bool fit2D=false, bool plotResults = false) {
   gROOT->ProcessLine(".L RooExtCBShape.cxx+");
 
   if (fitMass1D) {
-    signalExtraction(ispO, isMC, caseName, remakeDS, true, false, false);
+    signalExtraction(ispO, isMC, caseName, remakeDS, true, false, false, false);
     remakeDS=false;
   }
   if (fitTauz1D) {
-    signalExtraction(ispO, isMC, caseName, remakeDS, false, true, false);
-    remakeDS=false;
-    // TODO: make new bool in main function to do this part
-    signalExtraction(ispO, isMC, caseName, remakeDS, false, true, true);
-    remakeDS=false;
+    // Don't do the 2-step resolution fit
+    if (!fitNpTauz1D) {
+      signalExtraction(ispO, isMC, caseName, remakeDS, false, true, false, true); remakeDS=false;
+    } 
+    // Do the 2-step resolution fit
+    else { 
+      signalExtraction(ispO, isMC, caseName, remakeDS, false, true, false, false); remakeDS=false;
+      signalExtraction(ispO, isMC, caseName, remakeDS, false, true, true, true); remakeDS=false; 
+    }
   }
   if (fit2D)
-    signalExtraction(ispO, isMC, caseName, remakeDS, true, true, false);
-  
+    signalExtraction(ispO, isMC, caseName, remakeDS, true, true, false, false);
 
   if (plotResults) {
     int minCent = 0;
@@ -58,7 +61,7 @@ void InputToResults(bool ispO=true, bool isMC=false, const char *caseName = "nom
   
 }
 
-void signalExtraction(bool ispO, bool isMC, const char *caseName, bool remakeDS, bool fitMass, bool fitTauz, bool fitNpTauz) {
+void signalExtraction(bool ispO, bool isMC, const char *caseName, bool remakeDS, bool fitMass, bool fitTauz, bool fitNpTauz, bool fitTauzBkg) {
   
   //do the fits or at least some of them
   vector< struct KinCuts >       cutVector;
@@ -193,7 +196,7 @@ void signalExtraction(bool ispO, bool isMC, const char *caseName, bool remakeDS,
     }
     
     resultsFit.clear();
-    resultsFit = SignalExtraction1Fit(parIniVector[j], ws, caseName, rangeLabel, ispO, isMC, fitMass, fitTauz, fitNpTauz, cutVector[j]);
+    resultsFit = SignalExtraction1Fit(parIniVector[j], ws, caseName, rangeLabel, ispO, isMC, fitMass, fitTauz, fitNpTauz, fitTauzBkg, cutVector[j]);
     resultsFit["centMin"] = cutVector[j].cent.Start;
     resultsFit["centMax"] = cutVector[j].cent.End;
     resultsFit["ptMin"] = cutVector[j].pt.Min;
