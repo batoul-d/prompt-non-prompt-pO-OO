@@ -174,21 +174,22 @@ TLatex *varLatex (RooWorkspace *ws, map<string, string> parIni, double chi2ndf, 
   yText = yText-0.04;
   
   for (auto it = parIni.cbegin(); it != parIni.cend(); ++it) {
-    cout<<"[INFO] checking variable "<<it->first.c_str()<<" = "<<endl;
-    if(it->first.find("fit")!=std::string::npos || it->first.find("model")!=std::string::npos) continue;
-    if (ws->var(it->first.c_str())->isConstant()) continue;
+    cout << "[INFO] checking variable "<<it->first.c_str() << " = " << endl;
+    // Do not display auxiliary free_ parameters
+    // TODO: sometimes it might be useful to display them... comment this line below
+    if (it->first.rfind("free_", 0) == 0) continue;
+    if (it->first.find("fit")!=std::string::npos || it->first.find("model")!=std::string::npos) continue;
+    // if (ws->var(it->first.c_str())->isConstant()) continue;
     if (fitMass && fitTauz) {
-      if (!(it->first.find("_tauzMass")!=std::string::npos || it->first.find("_tauzSig")!=std::string::npos)) //include the lambda for the tauz nonprompt
+      if (!(it->first.find("_tauzMass")!=std::string::npos || it->first.find("_tauzSig")!=std::string::npos)) // include the lambda for the tauz nonprompt
 	continue;
-      
     }
     else if (fitMass && !fitTauz) {
       if (!(it->first.find("_mass")!=std::string::npos)) continue;
     }
     else if (!fitMass && fitTauz) {
       if (fitTauzRes) {
-        if (!(it->first.find("_tauzRes") != std::string::npos ||
-              it->first == "xMaxRes")) continue;
+        if (!(it->first.find("_tauzRes") != std::string::npos || it->first.find("_tauzSig")!=std::string::npos) || it->first == "xMaxRes") continue;
       }
       else if(fitTauzBkg) {
 	if (!(it->first.find("_tauzBkg")!=std::string::npos)) continue; 
@@ -197,13 +198,11 @@ TLatex *varLatex (RooWorkspace *ws, map<string, string> parIni, double chi2ndf, 
       else if (!(it->first.find("_tauzSig")!=std::string::npos)) continue; 
     }
     if (it->first.find("si2s")!=std::string::npos) continue;
+    // if (ws->var(it->first.c_str())->getError()==0 && it->first != "xMaxRes") continue;
+    cout << "[INFO] writing variable " << it->first.c_str() << " = ";
+    cout << ws->var(it->first.c_str())->getValV();
+    cout << " err = "<<ws->var(it->first.c_str())->getError() << endl;
     
-    if (ws->var(it->first.c_str())->getError()==0 && it->first != "xMaxRes") continue;
-    cout<<"[INFO] writing variable "<<it->first.c_str()<<" = ";
-    cout<<ws->var(it->first.c_str())->getValV();
-    cout<<" err = "<<ws->var(it->first.c_str())->getError()<<endl;
-    
-    std::cout << "it->first == " << it->first << std::endl;
     if (it->first == "xMaxRes") {textVar->DrawLatex(xText, yText, Form("%s = %g", varFancyLabel(it->first.c_str()).c_str(), ws->var(it->first.c_str())->getValV()));
     }
     else { textVar->DrawLatex(xText, yText, Form("%s = %g #pm %g", varFancyLabel(it->first.c_str()).c_str(), ws->var(it->first.c_str())->getValV(), ws->var(it->first.c_str())->getError()));
@@ -229,7 +228,7 @@ TLatex *cutLatex (bool ispO, struct KinCuts cutVector, float xText, float yText)
 }
 
 TLatex* cutTextResult(bool ispO, string axisName, float xText, float yText, float incMinCent, float incMaxCent, float incMinPt, float incMaxPt, float incMaxRap, float incMinRap, float incMinChi2, float incMaxChi2, bool diffChi2) {
-    TLatex* textCut = new TLatex();
+  TLatex* textCut = new TLatex();
   textCut->SetNDC();
   textCut->SetTextAlign(12);
   textCut->SetTextFont(43);
@@ -265,8 +264,6 @@ TLegend* makePlotLegend(RooPlot* frame, map<string, vector<string>> legendEntrie
   legend_lines->SetTextSize(17);
   
   for (const auto& [key, vec] : legendEntries) {
-    legend_lines->AddEntry(frame->RooPlot::findObject(key.c_str()), vec[0].c_str(), vec[1].c_str());
-    
-  }
+    legend_lines->AddEntry(frame->RooPlot::findObject(key.c_str()), vec[0].c_str(), vec[1].c_str()); }
   return legend_lines;
 }
