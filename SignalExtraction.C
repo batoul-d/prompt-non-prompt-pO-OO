@@ -34,7 +34,7 @@
 
 //___________________________________________________________________________________________________________
 //___________________________________________________________________________________________________________
-map<string, double> SignalExtraction1Fit(map<string, string>& parIni, RooWorkspace* ws, const char *caseName, string rangeLabel, bool ispO, bool isMC, bool fitMass, bool fitTauz, bool fitNpTauz, struct KinCuts cutVector) {
+map<string, double> SignalExtraction1Fit(map<string, string>& parIni, RooWorkspace* ws, const char *caseName, string rangeLabel, bool ispO, bool isMC, bool fitMass, bool fitTauz, bool fitNpTauz, bool fitTauzBkg, struct KinCuts cutVector) {
   gStyle->SetOptStat(0);
   // make output directory
   string outDirName = Form("output/outputFits_%s%s_%s", ispO?"pO":"OO", isMC?"_MC":"", caseName);
@@ -46,8 +46,7 @@ map<string, double> SignalExtraction1Fit(map<string, string>& parIni, RooWorkspa
 
   // Perform the tauz background fit?
   // NOTE: this is also set to 'false' and 'true' as part of the 2-step resolution fit. Might have to be changed below too.
-  bool doTauzBkgFit = true;
-  if (!doTauzBkgFit) cout << "[INFO] NOTE: RUNNING WITHOUT TAUZ BACKGROUND FIT -------------------------------------------" << endl;
+  if (!fitTauzBkg) cout << "[INFO] NOTE: RUNNING WITHOUT TAUZ BACKGROUND FIT -------------------------------------------" << endl;
   
   // Number of bins to be drawn (does not affect fitting)
   int nBins = 200;
@@ -88,7 +87,6 @@ map<string, double> SignalExtraction1Fit(map<string, string>& parIni, RooWorkspa
     }
   }
   else if (!fitMass && fitTauz && !isMC) {
-    doTauzBkgFit = false;
     RooPlot* tauzResFrame = ws->var("tauz")->frame(Range(tauzMin, 0), Bins(nBins));
     ws->data("sPlotDsSig")->plotOn(tauzResFrame, DataError(RooAbsData::SumW2));
     RooHist* hist = (RooHist*) tauzResFrame->getObject(0);
@@ -116,7 +114,6 @@ map<string, double> SignalExtraction1Fit(map<string, string>& parIni, RooWorkspa
     }
     // Step 2: include signal fit of non-prompt decay (initialised from MC)
     else { 
-      doTauzBkgFit = true;
       // Take parameters from 1st step
       fixParPDF(ws, NULL, parIni, ispO, rangeLabel, caseName, 0, 1, 1, 0, 0);
       RooFitResult* fitResult_tauz = ws->pdf("tauzSigPDF")->fitTo(*ws->data("sPlotDsSig"), Extended(kFALSE), SumW2Error(true), RooFit::Save(), Range(tauzMin, tauzMax));
@@ -129,7 +126,7 @@ map<string, double> SignalExtraction1Fit(map<string, string>& parIni, RooWorkspa
     }
     
     // Do the background fit using the resolution
-    if (doTauzBkgFit) { 
+    if (fitTauzBkg) { 
       cout << "[INFO] done with tauz resolution and now let's fix the parpameters to fit the bkg" << endl;
       RooFitResult* fitResult_tauzBkg = ws->pdf("tauzBkgPDF")->fitTo(*ws->data("sPlotDsBkg"), Extended(kFALSE), SumW2Error(true), RooFit::Save()); }
       cout << "[INFO] done with tauz bkg fit" << endl;
@@ -147,7 +144,7 @@ map<string, double> SignalExtraction1Fit(map<string, string>& parIni, RooWorkspa
     // Fix tauz-resolution parameters from the 1D tauz fit
     fixParPDF(ws, NULL, parIni, ispO, rangeLabel, caseName, false, true, false, false, false);
     // Fix tauz-background parameters from the 1D tauz fit
-    if (!isMC && doTauzBkgFit) { fixParPDF(ws, NULL, parIni, ispO, rangeLabel, caseName, false, false, false, true, false); }
+    if (!isMC && fitTauzBkg) { fixParPDF(ws, NULL, parIni, ispO, rangeLabel, caseName, false, false, false, true, false); }
 
     RooFitResult* fitResult_tauzMass = ws->pdf("totPDF_2D")->fitTo(*ws->data("data"), Extended(kTRUE), SumW2Error(true), RooFit::Save());
   }
@@ -262,7 +259,7 @@ map<string, double> SignalExtraction1Fit(map<string, string>& parIni, RooWorkspa
     massFrame->Draw();
     TLatex* textVar = varLatex(ws, parIni, chi2ndf, fitMass, fitTauz, 0, 0, 0.57, 0.8);
     TLatex* textCut = cutLatex(ispO, cutVector, 0.25,0.6);
-    TLegend* leg = makePlotLegend(massFrame, legendEntries, 0.25, 0.7, 0.5, 0.85);
+    TLegend* leg = makePlotLegend(massFrame, legendEntries, 0.25, 0.7, 0.5, 0.85); leg->Draw("same");
     TLatex *textAlice = AliceText(ispO);
     padPull->cd();
     fixPullStyle(pullFrame);
@@ -328,7 +325,7 @@ map<string, double> SignalExtraction1Fit(map<string, string>& parIni, RooWorkspa
     tauzResFrame->Draw();
     TLatex* textVarRes = varLatex(ws, parIni, chi2ndf, fitMass, fitTauz, 1, 0, 0.57, 0.85);
     TLatex* textCutRes = cutLatex(ispO, cutVector, 0.2, 0.8);
-    TLegend* legRes = makePlotLegend(tauzResFrame, legendEntries, 0.15, 0.5, 0.3, 0.65);
+    TLegend* legRes = makePlotLegend(tauzResFrame, legendEntries, 0.15, 0.5, 0.3, 0.65); legRes->Draw("same");
     TLatex *textAlice = AliceText(ispO);
     
     padPull->cd();
@@ -351,7 +348,7 @@ map<string, double> SignalExtraction1Fit(map<string, string>& parIni, RooWorkspa
     */
 
     //////// then tauz Bkg
-    if (doTauzBkgFit) {
+    if (fitTauzBkg) {
       padDist->cd();
       legendEntries.clear();
       ws->data("sPlotDsBkg")->plotOn(tauzBkgFrame, Name("sPlotDsBkg"), DataError(RooAbsData::SumW2)); legendEntries["sPlotDsBkg"] = {"sPlot background-like data","P"};
@@ -373,7 +370,7 @@ map<string, double> SignalExtraction1Fit(map<string, string>& parIni, RooWorkspa
       tauzBkgFrame->Draw();
       TLatex* textVarBkg = varLatex(ws, parIni, chi2ndf, fitMass, fitTauz, 0, 1, 0.57, 0.85); // textVarBkg->Draw("same");
       TLatex* textCutBkg = cutLatex(ispO, cutVector, 0.2,0.8); // textCutBkg->Draw("same");
-      TLegend* legBkg = makePlotLegend(tauzBkgFrame, legendEntries, 0.15, 0.5, 0.3, 0.65); // legBkg->Draw("same");
+      TLegend* legBkg = makePlotLegend(tauzBkgFrame, legendEntries, 0.15, 0.5, 0.3, 0.65); legBkg->Draw("same");
       TLatex *textAliceBkg = AliceText(ispO); // textAlice->Draw("same");
       
       
@@ -408,8 +405,7 @@ map<string, double> SignalExtraction1Fit(map<string, string>& parIni, RooWorkspa
     fixFrameStyle(tauzFrame, true); tauzFrame->Draw();
     TLatex* textVar = varLatex(ws, parIni, chi2ndf, fitMass, fitTauz, 0, 0, 0.57, 0.8); // textVar->Draw("same");
 
-    TLegend* leg = makePlotLegend(tauzFrame, legendEntries, 0.15, 0.7, 0.3, 0.85);
-    leg->Draw("same");
+    TLegend* leg = makePlotLegend(tauzFrame, legendEntries, 0.15, 0.7, 0.3, 0.85); leg->Draw("same");
     padPull->cd();
     fixPullStyle(pullFrame);
     pullFrame->Draw();
@@ -445,7 +441,7 @@ map<string, double> SignalExtraction1Fit(map<string, string>& parIni, RooWorkspa
     massFrame->Draw();
     TLatex* textVar = varLatex(ws, parIni, chi2ndf, fitMass, fitTauz, 0, 0, 0.57, 0.8); // textVar->Draw("same");
     TLatex* textCut = cutLatex(ispO, cutVector, 0.15,0.6); // textCut->Draw("same");
-    TLegend* leg = makePlotLegend(massFrame, legendEntries, 0.15, 0.7, 0.5, 0.85); // leg->Draw("same");
+    TLegend* leg = makePlotLegend(massFrame, legendEntries, 0.15, 0.7, 0.5, 0.85); leg->Draw("same");
     TLatex *textAlice = AliceText(ispO); // textAlice->Draw("same");
     padPull->cd();
     fixPullStyle(pullFrame);
@@ -481,7 +477,7 @@ map<string, double> SignalExtraction1Fit(map<string, string>& parIni, RooWorkspa
     tauzFrame->Draw();
     TLatex* textVarTauz = varLatex(ws, parIni, chi2ndf, fitMass, fitTauz, 0, 0, 0.57, 0.8); // textVarTauz->Draw("same");
     TLatex* textCutTauz = cutLatex(ispO, cutVector, 0.15,0.6); // textCutTauz->Draw("same");
-    TLegend* legTauz = makePlotLegend(tauzFrame, legendEntries, 0.15, 0.7, 0.5, 0.85); // legTauz->Draw("same");
+    TLegend* legTauz = makePlotLegend(tauzFrame, legendEntries, 0.15, 0.7, 0.5, 0.85); legTauz->Draw("same");
     TLatex *textAliceTauz = AliceText(ispO); // textAliceTauz->Draw("same");
     
     padPull->cd();
