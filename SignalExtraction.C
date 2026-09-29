@@ -49,7 +49,7 @@ map<string, double> SignalExtraction1Fit(map<string, string>& parIni, RooWorkspa
   if (!fitTauzBkg) cout << "[INFO] NOTE: RUNNING WITHOUT TAUZ BACKGROUND FIT -------------------------------------------" << endl;
   
   // Number of bins to be drawn (does not affect fitting)
-  int nBins = 200;
+  int nBins = 100;
 
   // Set range for plotting and fitting the mass
   double massMin = 2.4;
@@ -61,25 +61,16 @@ map<string, double> SignalExtraction1Fit(map<string, string>& parIni, RooWorkspa
 
   int nParTauzRes = -1;
 
-  // Set range for fitting the tau_z
-  // TODO: Remove this again!!!
-  // Double_t tauzFittingMin = -0.05;
-  // Double_t tauzFittingMax = 0.05;
-
-  // TODO: remove this
-  // Define the named RooFit range
-  // ws->var("tauz")->setRange("tauzFit", tauzFittingMin, tauzFittingMax);
-
   if (fitMass && !fitTauz) {
     if (parIni["doIterativeFit"] == "1") {
       std::cout << "[INFO] Applying iterative fitting on background function in 1D mass fits" << std::endl;
       RooFitResult* fitResult_mass = ws->pdf("totPDF_mass")->fitTo(*ws->data("data"), Extended(kTRUE), SumW2Error(true), RooFit::Save());
       RooDataSet* sPlotDs = (RooDataSet*) ws->data("data")->Clone("data_sPlot");
-      RooStats::SPlot* sData = new RooStats::SPlot("sData", "sPlot", *sPlotDs, ws->pdf("totPDF_mass"), RooArgList(*ws->var("fJpsi_mass"), *ws->var("fBkg_mass")));
+      RooStats::SPlot* sData = new RooStats::SPlot("sData", "sPlot", *sPlotDs, ws->pdf("toAtPDF_mass"), RooArgList(*ws->var("fJpsi_mass"), *ws->var("fBkg_mass")));
       ws->import(*sPlotDs);
     }
     else {
-      RooFitResult* fitResult_mass = ws->pdf("totPDF_mass")->fitTo(*ws->data("data"), Extended(kTRUE), SumW2Error(true), RooFit::Save());
+      RooFitResult* fitResult_mass = ws->pdf("totPDF_mass")->fitTo(*ws->data("data"), Extended(kTRUE), Range(massMin, massMax), SumW2Error(true), RooFit::Save());
       if (!isMC) { RooDataSet* sPlotDs = (RooDataSet*) ws->data("data")->Clone("data_sPlot");
         RooStats::SPlot* sData = new RooStats::SPlot("sData", "sPlot", *sPlotDs, ws->pdf("totPDF_mass"), RooArgList(*ws->var("fJpsi_mass"), *ws->var("fBkg_mass")));
         ws->import(*sPlotDs);
@@ -240,7 +231,7 @@ map<string, double> SignalExtraction1Fit(map<string, string>& parIni, RooWorkspa
     else {
       ws->data("data")->plotOn(massFrame, Name("data")); legendEntries["data"] = {"data","P"};
       if (!isMC) { ws->pdf("totPDF_mass")->plotOn(massFrame, Name("background_mass"), Components(RooArgSet(*ws->pdf("bkgPDF_mass"))),DrawOption("F"), FillColor(kGray), LineColor(kGray)); legendEntries["background_mass"] = {"Background", "F"}; }
-      ws->pdf("totPDF_mass")->plotOn(massFrame, Name("signalPsi2s_mass"), Components(RooArgSet(*ws->pdf("psi2sPDF_mass"))),DrawOption("L"), LineColor(kGreen+4)); //legendEntries["signalPsi2s_mass"] = {"#psi(2S) signal","L"};
+      ws->pdf("totPDF_mass")->plotOn(massFrame, Name("signalPsi2s_mass"), Components(RooArgSet(*ws->pdf("psi2sPDF_mass"))),DrawOption("L"), LineColor(kBlue+4)); legendEntries["signalPsi2s_mass"] = {"#psi(2S) signal","L"};
       ws->pdf("totPDF_mass")->plotOn(massFrame, Name("signalJpsi_mass"), Components(RooArgSet(*ws->pdf("jpsiPDF_mass"))),DrawOption("L"), LineColor(kGreen+2)); legendEntries["signalJpsi_mass"] = {"J/#psi signal","L"};
       ws->pdf("totPDF_mass")->plotOn(massFrame, Name("total_mass"), LineColor(kRed)); legendEntries["total_mass"] = {"total fit","L"};
     }
@@ -268,6 +259,7 @@ map<string, double> SignalExtraction1Fit(map<string, string>& parIni, RooWorkspa
     linePull->SetLineColor(kRed); linePull->SetLineStyle(2); linePull->Draw("same");
     //std::string pdfPath = "";
     can->SaveAs(Form("%s/massFit1D_%s.pdf", outDirName.c_str(), rangeLabel.c_str()));
+    can->SaveAs(Form("%s/massFit1D_%s.root", outDirName.c_str(), rangeLabel.c_str()));
     if (parIni["doIterativeFit"] == "1") {
       canFitChi2->SaveAs(Form("%s/massFit1D_%s_fitChi2Trend.pdf", outDirName.c_str(), rangeLabel.c_str()));
     }

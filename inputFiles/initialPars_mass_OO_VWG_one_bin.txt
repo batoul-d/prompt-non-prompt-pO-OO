@@ -1,0 +1,2 @@
+pt;y;cent;chi2;fitStat;doIterativeFit;modelSig_mass;mean_mass;sigma_mass;alpha0_mass;n0_mass;alpha1_mass;n1_mass;modelBkg_mass;A_mass;B_mass;C_mass;
+0-1;2.5-3.6;0-100;0-35;todo;false;extCB;[3.096,3,3.2];[0.066,0.059,0.07];[0.605];[2.72];[2.501];[1.76];VWG;[2.24693,0,10.3];[0.0438149,0.0001,10.0];[0.841295,-1.0,10.0];

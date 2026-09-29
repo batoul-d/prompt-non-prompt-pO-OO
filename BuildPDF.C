@@ -126,6 +126,10 @@ void buildPDF_mass(RooWorkspace* ws, map<string, string> parIni, bool isMC){
     }
     ws->Print();
   }
+  else if (parIni["modelBkg_mass"]=="VWG") {
+    ws->factory("VWGPdf::bkgVWG_mass(mass, A_mass, B_mass, C_mass)");
+    ws->factory("RooExtendPdf::bkgPDF_mass(bkgVWG_mass, fBkg_mass)");
+  }
 
   if (parIni["modelSig_mass"]=="Gauss") {
     ws->factory("RooGaussian::jpsiGaus_mass(mass, mean_mass, sigma_mass)");
@@ -142,8 +146,8 @@ void buildPDF_mass(RooWorkspace* ws, map<string, string> parIni, bool isMC){
   
   // Combine the components into a composite model
   RooAddPdf* totPDF_mass = new RooAddPdf ("totPDF_mass", "model for mass fit", RooArgList(*ws->pdf("jpsiPDF_mass"), *ws->pdf("psi2sPDF_mass"), *ws->pdf("bkgPDF_mass")));
-  if (isMC) totPDF_mass = new RooAddPdf ("totPDF_mass", "model for mass fit", RooArgList(*ws->pdf("jpsiPDF_mass")));
-  // if (isMC) totPDF_mass = new RooAddPdf ("totPDF_mass", "model for mass fit", RooArgList(*ws->pdf("jpsiPDF_mass"), *ws->pdf("psi2sPDF_mass")));
+  // if (isMC) totPDF_mass = new RooAddPdf ("totPDF_mass", "model for mass fit", RooArgList(*ws->pdf("jpsiPDF_mass")));
+  if (isMC) totPDF_mass = new RooAddPdf ("totPDF_mass", "model for mass fit", RooArgList(*ws->pdf("jpsiPDF_mass"), *ws->pdf("psi2sPDF_mass")));
   ws->import(*totPDF_mass);
 
 }
@@ -291,27 +295,42 @@ void setDefaultParameters(map<string, string>& parIni, double nEntriesDS){
   varMap["b_jpsi_tauzMass"] = {0.2, 0.01, 0.5};
   varMap["b_psi2s_tauzMass"] = {0.2, 0, 1};
   varMap["b_bkg_tauzMass"] = {0.2, 0, 1};
+  std::cout << "nEntriesDS (for this bin?) = " << nEntriesDS << std::endl;
   varMap["fJpsi_tauzMass"] = {0.01*nEntriesDS, 0, 2.0*nEntriesDS};
-  varMap["fPsi2s_tauzMass"] = {0.01*nEntriesDS, 0, 2.0*nEntriesDS};
+  varMap["fPsi2s_tauzMass"] = {0.0001*nEntriesDS, 0, 2.0*nEntriesDS};
   varMap["fBkg_tauzMass"] = {0.1*nEntriesDS, 0, 2.0*nEntriesDS};
   
-  varMap["fJpsi_mass"] = {0.1*nEntriesDS, 0, 2.0*nEntriesDS};
-  varMap["fPsi2s_mass"] = {0.001*nEntriesDS, 0, 0.2*nEntriesDS};
+  varMap["fJpsi_mass"] = {0.001*nEntriesDS, 0, 2.0*nEntriesDS};
+  varMap["fPsi2s_mass"] = {0.0001*nEntriesDS, 0, 0.2*nEntriesDS};
   varMap["fBkg_mass"] = {0.1*nEntriesDS, 0, 2.0*nEntriesDS};
   
-  varMap["mean_mass"] = {3.096, 2.9, 3.3};
+  varMap["mean_mass"] = {3.096, 2.95, 3.2};
   varMap["sigma_mass"] = {0.02, 0, 0.1};
   varMap["alpha0_mass"] = {1., 0, 5};
   varMap["n0_mass"] = {3., 0, 5};
   varMap["alpha1_mass"] = {1., 0, 5};
   varMap["n1_mass"] = {3., 0, 5};
-  
+
+  // Optimised for OO bin [0, 1]
+  /*
+  varMap["alpha0_mass"] = {0.605, 0.605, 0.605};
+  varMap["n0_mass"] = {2.72, 2.72, 2.72};
+  varMap["alpha1_mass"] = {2.501, 2.501, 2.501};
+  varMap["n1_mass"] = {1.76, 1.76, 1.76};
+  */
+
   varMap["c0_mass"] = {0, -2, 2};
   varMap["c1_mass"] = {0, -2, 2};
   varMap["c2_mass"] = {0, -2, 2};
   varMap["c3_mass"] = {0, -2, 2};
   varMap["c4_mass"] = {0, -2, 2};
   
+  if (parIni["modelBkg_mass"]=="VWG") {
+    varMap["A_mass"] = {2.0, 0.0, 10.3};
+    varMap["B_mass"] = {0.2, 0.0001, 10.0};
+    varMap["C_mass"] = {0.5, -1.0, 10.0};
+  }
+
   // TODO: uncomment these blocks after 2nd step fits are validated!!!
   varMap["xMaxRes"] = {0, -0.02, 0.02};
   varMap["mean_tauzRes"] = {0, -0.0005, 0.0005};
@@ -335,7 +354,7 @@ void setDefaultParameters(map<string, string>& parIni, double nEntriesDS){
   }
     
   // TODO: add this parameter to the input per bin ?
-  varMap["fb_tauzSig"] = {0.1, 0.05, 0.2};
+  varMap["fb_tauzSig"] = {0.1, 0.1, 0.6};
   varMap["lambdaDssNpr_tauzSig"] = {0.0014, 0.0010, 0.0020};
   
   varMap["fDfssNpr_tauzBkg"] = {0.8, 0.2, 0.9};
@@ -400,6 +419,11 @@ void fixParPDF(RooWorkspace* ws, RooFitResult* fitResult, map<string, string> &p
       fixedPars.push_back("c2_mass");
       fixedPars.push_back("c3_mass");
       fixedPars.push_back("c4_mass");
+    }
+    else if (parIni["modelBkg_mass"]=="VWG") {
+      fixedPars.push_back("A_mass");
+      fixedPars.push_back("B_mass");
+      fixedPars.push_back("C_mass");
     }
   }
   else if (fromTauzResPDF) {
