@@ -90,7 +90,7 @@ RooDataSet* createDataset(bool ispO, bool isMC) {
   fChain->SetBranchStatus("fMcDecision",1);
   
 
-  RooRealVar* mass = new RooRealVar("mass","Mass_{#mu^{+}#mu^{-}}", 2, 4, "GeV/c^{2}");
+  RooRealVar* mass = new RooRealVar("mass","Mass_{#mu^{+}#mu^{-}}", 2.4, 4, "GeV/c^{2}");
   RooRealVar* pt = new RooRealVar("pt","p_{T, #mu^{+}#mu^{-}}", 0, 20, "GeV/c");
   RooRealVar* y = new RooRealVar("y","y_{#mu^{+}#mu^{-}}", -5, -2);
   RooRealVar* sign = new RooRealVar("sign","dimuon sign", -3, 3);
@@ -109,7 +109,7 @@ RooDataSet* createDataset(bool ispO, bool isMC) {
     float rap = TMath::Log((TMath::Sqrt(fMass * fMass + fPt * fPt * TMath::CosH(fEta) * TMath::CosH(fEta)) + fPt * TMath::SinH(fEta)) /
 			   (TMath::Sqrt(fMass * fMass + fPt * fPt)));
     
-    if (fMass<2 || fMass>4) continue;
+    if (fMass<2.4 || fMass>4) continue;
     if (fTauz<-0.07 || fTauz>0.07) continue;
     // apply acceptance cuts
     if (fEta1<-3.6 || fEta1>-2.5) continue;
@@ -118,7 +118,9 @@ RooDataSet* createDataset(bool ispO, bool isMC) {
     if (fChi2MatchMCHMFT1 > 500 || fChi2MatchMCHMFT2 >500) continue;
     if (fIsAmbig1 || fIsAmbig2) continue;
     
-    // only for MC. 5 means dimuons matched to our non-prompt signal
+    // only for MC
+    // 5 --> means dimuons matched to our non-prompt J/psi signal
+    // 4 --> non-prompt psi2S
     if (isMC) {
       if (fMcDecision == 0) continue; }
 
@@ -382,7 +384,6 @@ bool parseString(string input, string delimiter, vector<double>& output)
   }
   return true;
 };
-
 
 bool parseFile(string FileName, vector< map<string, string> >& data) {
   vector< vector<string> > content, tmp; 

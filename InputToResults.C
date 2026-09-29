@@ -17,6 +17,9 @@
 #include <TLatex.h>
 #include <fstream>
 #include <iomanip>
+#include "Libs/VWGPdf.h"
+#include "Libs/VWGPdfK.h"
+#include "Libs/VWGPdfRatio.h"
 
 #include "SignalExtraction.C"
 
@@ -25,6 +28,7 @@ void plotResult(bool ispO=true, const char *caseName = "nominal", string axisNam
 
 void InputToResults(bool ispO=true, bool isMC=false, const char *caseName = "nominal", bool remakeDS = false, bool fitMass1D=true, bool fitTauz1D=false, bool fitNpTauz1D=false, bool fit2D=false, bool plotResults = false) {
   gROOT->ProcessLine(".L RooExtCBShape.cxx+");
+  gROOT->ProcessLine(".L Libs/VWGPdf.cxx+");
 
   if (fitMass1D) {
     signalExtraction(ispO, isMC, caseName, remakeDS, true, false, false, false);
@@ -112,7 +116,7 @@ void signalExtraction(bool ispO, bool isMC, const char *caseName, bool remakeDS,
     data->Write("data");
   }
 
-    // Store the relevant fit results for the summary CSV
+    // Store the relevant fit results for the summary TSV
     struct FitSummaryRow {
       double ptMin;
       double ptMax;
@@ -121,6 +125,14 @@ void signalExtraction(bool ispO, bool isMC, const char *caseName, bool remakeDS,
       double fb_err;
       double N_jpsi;
       double N_jpsi_err;
+      double c0_mass;
+      double c0_mass_err;
+      double c1_mass;
+      double c1_mass_err;
+      double c2_mass;
+      double c2_mass_err;
+      double c3_mass;
+      double c3_mass_err;
       double mean_mass;
       double mean_mass_err;
       double sigma_mass;
@@ -208,7 +220,7 @@ void signalExtraction(bool ispO, bool isMC, const char *caseName, bool remakeDS,
     
     allResults.push_back(resultsFit);
 
-    // Store selected fit results for the summary CSV for systematics
+    // Store selected fit results for the summary TSV for systematics
     // TODO: make this into the plotUtils?
     auto getResult = [&](const string& name) -> double {
       auto it = resultsFit.find(name);
@@ -226,8 +238,16 @@ void signalExtraction(bool ispO, bool isMC, const char *caseName, bool remakeDS,
     summaryRow.fitChi2 = getResult("chi2ndf");
     summaryRow.fb = getResult("b_jpsi_tauzMass");
     summaryRow.fb_err = getResult("b_jpsi_tauzMass_err");
-    summaryRow.N_jpsi = getResult("fJpsi_tauzMass");
-    summaryRow.N_jpsi_err = getResult("fJpsi_tauzMass_err");
+    summaryRow.N_jpsi = getResult("fJpsi_mass");
+    summaryRow.N_jpsi_err = getResult("fJpsi_mass_err");
+    summaryRow.c0_mass = getResult("c0_mass");
+    summaryRow.c0_mass_err = getResult("c0_mass_err");
+    summaryRow.c1_mass = getResult("c1_mass");
+    summaryRow.c1_mass_err = getResult("c1_mass_err");
+    summaryRow.c2_mass = getResult("c2_mass");
+    summaryRow.c2_mass_err = getResult("c2_mass_err");
+    summaryRow.c3_mass = getResult("c3_mass");
+    summaryRow.c3_mass_err = getResult("c3_mass_err");
     summaryRow.mean_mass = getResult("mean_mass");
     summaryRow.mean_mass_err = getResult("mean_mass_err");
     summaryRow.sigma_mass = getResult("sigma_mass");
@@ -284,60 +304,68 @@ void signalExtraction(bool ispO, bool isMC, const char *caseName, bool remakeDS,
   fSave->Close();
 
   // ============================================================
-  // Write summary CSV only after ALL fits have been completed
+  // Write summary TSV only after ALL fits have been completed
   // ============================================================
 
-  string csvName = Form("output/fitSummary_%s%s_%s.csv", ispO ? "pO" : "OO", isMC ? "_MC" : "", caseName);
+  string tsvName = Form("output/fitSummary_%s%s_%s.tsv", ispO ? "pO" : "OO", isMC ? "_MC" : "", caseName);
 
-  ofstream csvFile(csvName);
+  ofstream tsvFile(tsvName);
 
-  if (!csvFile.is_open()) { cout << "[ERROR] Could not create summary CSV: " << csvName << endl; return; }
+  if (!tsvFile.is_open()) { cout << "[ERROR] Could not create summary TSV: " << tsvName << endl; return; }
 
   // Header
-  csvFile
-    << "pT_bin (GeV/c),"
-    << "fit chi2 (last performed),"
-    << "fb,"
-    << "N_Jpsi,"
-    << "Jpsi_mass (GeV/c2),"
-    << "Jpsi_sigma (GeV/c2),"
-    << "mean_tauzRes (ns),"
-    << "sigma0_tauzRes (ns),"
-    << "sigma1_tauzRes (ns),"
-    << "sigma2_tauzRes (ns),"
-    << "sigma3_tauzRes (ns),"
-    << "fGaus0_tauzRes,"
+  tsvFile
+    << "pT_bin (GeV/c)\t"
+    << "fit chi2 (last performed)\t"
+    << "fb\t"
+    << "N_Jpsi\t"
+    << "c0_mass\t"
+    << "c1_mass\t"
+    << "c2_mass\t"
+    << "c3_mass\t"
+    << "Jpsi_mass (GeV/c2)\t"
+    << "Jpsi_sigma (GeV/c2)\t"
+    << "mean_tauzRes (ns)\t"
+    << "sigma0_tauzRes (ns)\t"
+    << "sigma1_tauzRes (ns)\t"
+    << "sigma2_tauzRes (ns)\t"
+    << "sigma3_tauzRes (ns)\t"
+    << "fGaus0_tauzRes\t"
     << "fGaus1_tauzRes"
     << "\n";
 
   // Case name on second row
-  csvFile << caseName << ",,,,,,,,,,,\n";
+  tsvFile << caseName << "\t\t\t\t\t\t\t\t\t\t\t\n";
 
   // Data rows
-  csvFile << std::setprecision(5);
+  tsvFile << std::setprecision(5);
 
   for (const auto& row : fitSummary) {
 
-    csvFile
-      << "\"[" << row.ptMin << "," << row.ptMax << "]\","
-      << row.fitChi2 << ","
-      << row.fb << " (" << row.fb_err << ")" << ","
-      << row.N_jpsi << " (" << row.N_jpsi_err << ")" << ","
-      << row.mean_mass << " (" << row.mean_mass_err << ")" << ","
-      << row.sigma_mass << " (" << row.sigma_mass_err << ")" << ","
-      << row.mean_tauzRes << " (" << row.mean_tauzRes_err << ")" << ","
-      << row.sigma0_tauzRes << " (" << row.sigma0_tauzRes_err << ")" << ","
-      << row.sigma1_tauzRes << " (" << row.sigma1_tauzRes_err << ")" << ","
-      << row.sigma2_tauzRes << " (" << row.sigma2_tauzRes_err << ")" << ","
-      << row.sigma3_tauzRes << " (" << row.sigma3_tauzRes_err << ")" << ","
-      << row.fGaus0_tauzRes << " (" << row.fGaus0_tauzRes_err << ")" << ","
+    tsvFile
+      << "\"[" << row.ptMin << "," << row.ptMax << "]\"\t"
+      << row.fitChi2 << "\t"
+      << row.fb << " (" << row.fb_err << ")" << "\t"
+      << row.N_jpsi << " (" << row.N_jpsi_err << ")" << "\t"
+      << row.c0_mass << " (" << row.c0_mass_err << ")" << "\t"
+      << row.c1_mass << " (" << row.c1_mass_err << ")" << "\t"
+      << row.c2_mass << " (" << row.c2_mass_err << ")" << "\t"
+      << row.c3_mass << " (" << row.c3_mass_err << ")" << "\t"
+      << row.mean_mass << " (" << row.mean_mass_err << ")" << "\t"
+      << row.sigma_mass << " (" << row.sigma_mass_err << ")" << "\t"
+      << row.mean_tauzRes << " (" << row.mean_tauzRes_err << ")" << "\t"
+      << row.sigma0_tauzRes << " (" << row.sigma0_tauzRes_err << ")" << "\t"
+      << row.sigma1_tauzRes << " (" << row.sigma1_tauzRes_err << ")" << "\t"
+      << row.sigma2_tauzRes << " (" << row.sigma2_tauzRes_err << ")" << "\t"
+      << row.sigma3_tauzRes << " (" << row.sigma3_tauzRes_err << ")" << "\t"
+      << row.fGaus0_tauzRes << " (" << row.fGaus0_tauzRes_err << ")" << "\t"
       << row.fGaus1_tauzRes << " (" << row.fGaus1_tauzRes_err << ")"
       << "\n";
   }
-  csvFile.close();
+  tsvFile.close();
 
-  cout << "[INFO] Fit summary CSV written to: "
-       << csvName << endl;
+  cout << "[INFO] Fit summary TSV written to: "
+       << tsvName << endl;
 }
 
 
@@ -390,6 +418,7 @@ void plotResult(bool ispO, const char *caseName, string axisName, int incMinCent
       double fb_jpsi_err = 0.; resTree->SetBranchAddress("b_jpsi_tauzMass_err", &fb_jpsi_err);
       double N_jpsi = 0.;
       double N_jpsi_err = 0.;
+
       if (!isMC) { 
         resTree->SetBranchAddress("fJpsi_tauzMass", &N_jpsi); 
         resTree->SetBranchAddress("fJpsi_tauzMass_err", &N_jpsi_err);
