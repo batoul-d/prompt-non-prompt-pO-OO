@@ -52,6 +52,7 @@ map<string, double> SignalExtraction1Fit(map<string, string>& parIni, RooWorkspa
   int nBins = 100;
 
   // Set range for plotting and fitting the mass
+  // Make sure to also modify this accordingly in the inputUtils.h !!
   double massMin = 2.4;
   double massMax = 4.0;
 
@@ -83,10 +84,10 @@ map<string, double> SignalExtraction1Fit(map<string, string>& parIni, RooWorkspa
     RooHist* hist = (RooHist*) tauzResFrame->getObject(0);
     ws->var("xMaxRes")->setVal(getMax(hist));
     double xMaxRes = ws->var("xMaxRes")->getVal(); // to get the mean of the resolution function
-    // double xMaxRes = 0.;
+    // xMaxRes = 0.;
     cout << " [INFO] xMaxRes = " << xMaxRes << " ns" << endl;
     ws->var("mean_tauzRes")->setVal(xMaxRes);
-    double bias = 0.3;
+    double bias = 0.2;
     ws->var("mean_tauzRes")->setMin(ws->var("mean_tauzRes")->getVal() - bias * std::abs(ws->var("mean_tauzRes")->getVal()));
     ws->var("mean_tauzRes")->setMax(ws->var("mean_tauzRes")->getVal() + bias * std::abs(ws->var("mean_tauzRes")->getVal()));
     // ws->var("mean_tauzRes")->setConstant(kTRUE);
@@ -133,7 +134,9 @@ map<string, double> SignalExtraction1Fit(map<string, string>& parIni, RooWorkspa
     // Fix mass-shape parameters from the 1D mass fit
     fixParPDF(ws, NULL, parIni, ispO, rangeLabel, caseName, true, false, false, false, false);
     // Fix tauz-resolution parameters from the 1D tauz fit
-    fixParPDF(ws, NULL, parIni, ispO, rangeLabel, caseName, false, true, false, false, false);
+    // Also get the lambda parameter
+    // TODO: actually don't do this when you don't do the 2nd step resolution fit
+    fixParPDF(ws, NULL, parIni, ispO, rangeLabel, caseName, false, true, false, false, true);
     // Fix tauz-background parameters from the 1D tauz fit
     if (!isMC && fitTauzBkg) { fixParPDF(ws, NULL, parIni, ispO, rangeLabel, caseName, false, false, false, true, false); }
 
@@ -257,9 +260,9 @@ map<string, double> SignalExtraction1Fit(map<string, string>& parIni, RooWorkspa
     pullFrame->Draw();
     TLine* linePull = new TLine(massMin, 0, massMax, 0);
     linePull->SetLineColor(kRed); linePull->SetLineStyle(2); linePull->Draw("same");
-    //std::string pdfPath = "";
+    // std::string pdfPath = "";
     can->SaveAs(Form("%s/massFit1D_%s.pdf", outDirName.c_str(), rangeLabel.c_str()));
-    can->SaveAs(Form("%s/massFit1D_%s.root", outDirName.c_str(), rangeLabel.c_str()));
+    // can->SaveAs(Form("%s/massFit1D_%s.root", outDirName.c_str(), rangeLabel.c_str()));
     if (parIni["doIterativeFit"] == "1") {
       canFitChi2->SaveAs(Form("%s/massFit1D_%s_fitChi2Trend.pdf", outDirName.c_str(), rangeLabel.c_str()));
     }
