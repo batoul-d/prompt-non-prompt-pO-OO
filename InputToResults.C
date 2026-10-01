@@ -30,6 +30,9 @@ void InputToResults(bool ispO=true, bool isMC=false, const char *caseName = "nom
   gROOT->ProcessLine(".L RooExtCBShape.cxx+");
   gROOT->ProcessLine(".L Libs/VWGPdf.cxx+");
 
+  // TODO: eventually this could be an argument in the main function
+  bool doSplot = true;
+
   if (fitMass1D) {
     signalExtraction(ispO, isMC, caseName, remakeDS, true, false, false, false);
     remakeDS=false;
@@ -53,8 +56,8 @@ void InputToResults(bool ispO=true, bool isMC=false, const char *caseName = "nom
     int maxCent = 100;
     float minPt = 0.;
     float maxPt = 20.;
-    float minRap = 2.5;//-3.5;
-    float maxRap = 3.6;//-2.6;
+    float minRap = 2.5; // -3.5;
+    float maxRap = 3.6; // -2.6;
     float minChi2 = 0;
     float maxChi2 = 50;
     string axisName = "pt";

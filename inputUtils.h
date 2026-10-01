@@ -121,8 +121,7 @@ RooDataSet* createDataset(bool ispO, bool isMC) {
     // only for MC
     // 5 --> means dimuons matched to our non-prompt J/psi signal
     // 4 --> non-prompt psi2S
-    if (isMC) {
-      if (fMcDecision == 0) continue; }
+    if (isMC) { if (fMcDecision == 0 || fMcDecision == 4) continue; }
 
     mass->setVal(fMass);
     pt->setVal(fPt);

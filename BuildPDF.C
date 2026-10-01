@@ -352,8 +352,7 @@ void setDefaultParameters(map<string, string>& parIni, double nEntriesDS){
     varMap["sigma3_tauzRes"] = {0.00045, 0.0002, 0.0030};
     varMap["fGaus2_tauzRes"] = {0.05, 0, 1};
   }
-    
-  // TODO: add this parameter to the input per bin ?
+
   varMap["fb_tauzSig"] = {0.1, 0.1, 0.6};
   varMap["lambdaDssNpr_tauzSig"] = {0.0014, 0.0010, 0.0020};
   
@@ -384,7 +383,7 @@ void setDefaultParameters(map<string, string>& parIni, double nEntriesDS){
 void fixParPDF(RooWorkspace* ws, RooFitResult* fitResult, map<string, string> &parIni, bool ispO, string rangeLabel, const char *caseName, bool fromMassPDF, bool fromTauzResPDF, bool fromNpTauzResPDF, bool fromTauzBkgPDF, bool biasLambdaPar) {
   std::vector<std::string> fixedPars;
   std::vector<std::string> biasedPars; // used as input for 2nd step of resolution fit
-  double bias = 0;
+  double bias = 0.3;
   if (fromMassPDF) {
     if (parIni["modelSig_mass"]=="Gauss") {
       fixedPars.push_back("mean_mass");
@@ -496,6 +495,8 @@ else if (fromTauzBkgPDF) {
   }
 }
 
+if (biasLambdaPar) { biasedPars.push_back("lambdaDssNpr_tauzSig"); }
+
   // TODO: add mc labels in file names
   if (!fitResult) {
     cout << "[INFO] fixing parameters from previous fits" << endl;
@@ -533,11 +534,19 @@ else if (fromTauzBkgPDF) {
         RooRealVar* var = ws->var(name.c_str());
         if (!var) { cout << "[ERROR] Variable " << name << " not found in workspace" << endl; continue; }
         if (!fromNpTauzResPDF) {
-          cout << "[INFO] Fixing " << name << " = " << val << endl;
-          var->setVal(val);
-          var->setConstant(kTRUE);
+          if (name != "lambdaDssNpr_tauzSig") {
+            cout << "[INFO] Fixing " << name << " = " << val << endl;
+            var->setVal(val);
+            var->setConstant(kTRUE);
+          }
+          // We don't fix the value of λsig, but read and bias it
+          else {
+            cout << "[INFO] Reading " << name << " = " << val << endl; var->setVal(val);
+            var->setMin(var->getVal() - bias * std::abs(var->getVal()));
+            var->setMax(var->getVal() + bias * std::abs(var->getVal()));
+          }
         }
-        else { 
+        else {
           cout << "[INFO] Reading " << name << " = " << val << endl; var->setVal(val);
           var->setMin(var->getVal() - bias * std::abs(var->getVal()));
           var->setMax(var->getVal() + bias * std::abs(var->getVal()));
@@ -570,7 +579,20 @@ else if (fromTauzBkgPDF) {
             << endl;
       }
     }
+    // TODO: this can be included above?
     if (biasLambdaPar) {
+      fitResult->Print();
+      std::string par = "lambdaDssNpr_tauzSig";
+      RooRealVar* var = (RooRealVar*) fitResult->floatParsFinal().find(par.c_str());
+      cout << "[INFO] let's bias " << par << endl;
+      ws->var(par.c_str())->setVal(var->getVal());
+        ws->var(par.c_str())->setMin(var->getVal() - bias * std::abs(var->getVal()));
+        ws->var(par.c_str())->setMax(var->getVal() + bias * std::abs(var->getVal()));
+        if (bias == 0) { ws->var(par.c_str())->setConstant(kTRUE); }
+          cout << "       value = " << var->getVal()
+              << ", range = [" << var->getVal() - bias * std::abs(var->getVal())
+              << ", " << var->getVal() + bias * std::abs(var->getVal()) << "]"
+              << endl;
       // After 2nd step of resolution fit, the lambda parameter will be initialised for the 2D fits later
       // TODO: check if the 2D fits correctly take the parameters from the 2nd step...
     }
