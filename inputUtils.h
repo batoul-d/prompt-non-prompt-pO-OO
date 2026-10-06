@@ -43,7 +43,7 @@ using namespace  RooFit;
 
 TChain* getInputTree(string inputTreeFile, string treeName);
 void findAndAddTrees(TDirectory* dir, const std::string& treeName, TChain* chain, const std::string& fileName);
-RooDataSet* createDataset(bool ispO = true, bool isMC=false);
+std::array<RooDataSet*, 4> createDataset(bool ispO = true, bool isMC=false, const char *methodName = "sPlot");
 double getMax(RooHist* hist);
 void fixPullStyle(RooPlot* pullFrame); //move from here maybe
 bool parseFile(string FileName, vector< map<string, string> >& data);
@@ -53,9 +53,13 @@ bool setParameters(map<string, string> row, struct KinCuts& cut, map<string, str
 bool addParameters(string InputFile,  vector< struct KinCuts >& cutVector, vector< map<string, string> >&  parIniVector);
 
 
-RooDataSet* createDataset(bool ispO, bool isMC) {
-  TChain *fChain = getInputTree(Form("inputFiles/input_%s_%s.txt", isMC?"MC":"data", ispO?"pO":"OO"), "O2rtdimuonall");
-  
+std::array<RooDataSet*, 4> createDataset(bool ispO, bool isMC, const char *methodName) {
+  bool doSplot = false; bool doSideBands = false;
+  if (strcmp(methodName, "sPlot") == 0) doSplot = true;
+  if (strcmp(methodName, "sideBands") == 0) doSideBands = true;
+
+  TChain *fChain = getInputTree(Form("inputFiles/input_%s_%s.txt", isMC ? "MC" : "data", ispO ? "pO" : "OO"), "O2rtdimuonall");
+
   Float_t fMass; fChain->SetBranchAddress("fMass", &fMass);
   Float_t fPt; fChain->SetBranchAddress("fPt", &fPt);
   Float_t fEta; fChain->SetBranchAddress("fEta", &fEta);
@@ -70,70 +74,130 @@ RooDataSet* createDataset(bool ispO, bool isMC) {
   Int_t fIsAmbig2; fChain->SetBranchAddress("fIsAmbig2", &fIsAmbig2);
   Float_t fChi2MatchMCHMFT1; fChain->SetBranchAddress("fChi2MatchMCHMFT1", &fChi2MatchMCHMFT1);
   Float_t fChi2MatchMCHMFT2; fChain->SetBranchAddress("fChi2MatchMCHMFT2", &fChi2MatchMCHMFT2);
-  auto fMcDecision = static_cast<uint32_t>(0); fChain->SetBranchAddress("fMcDecision", &fMcDecision);
-  
-  fChain->SetBranchStatus("*",0);
-  fChain->SetBranchStatus("fMass",1);
-  fChain->SetBranchStatus("fPt",1);
-  fChain->SetBranchStatus("fEta",1);
-  fChain->SetBranchStatus("fEta1",1);
-  fChain->SetBranchStatus("fEta2",1);
-  fChain->SetBranchStatus("fPhi",1);
-  fChain->SetBranchStatus("fSign",1);
-  fChain->SetBranchStatus("fChi2pca",1);
-  fChain->SetBranchStatus("fTauz",1);
-  fChain->SetBranchStatus("fTauzErr",1);
-  fChain->SetBranchStatus("fIsAmbig1",1);
-  fChain->SetBranchStatus("fIsAmbig2",1);
-  fChain->SetBranchStatus("fChi2MatchMCHMFT1",1);
-  fChain->SetBranchStatus("fChi2MatchMCHMFT2",1);
-  fChain->SetBranchStatus("fMcDecision",1);
-  
+  // Do the bottom part only for MC
+  auto fMcDecision = static_cast<uint32_t>(0);
+  UShort_t fMcMask1;
+  UShort_t fMcMask2;
+  if (isMC) {
+    fChain->SetBranchAddress("fMcDecision", &fMcDecision);
+    fChain->SetBranchAddress("fMcMask1", &fMcMask1);
+    fChain->SetBranchAddress("fMcMask2", &fMcMask2);
+  }
 
-  RooRealVar* mass = new RooRealVar("mass","Mass_{#mu^{+}#mu^{-}}", 2.4, 4, "GeV/c^{2}");
-  RooRealVar* pt = new RooRealVar("pt","p_{T, #mu^{+}#mu^{-}}", 0, 20, "GeV/c");
-  RooRealVar* y = new RooRealVar("y","y_{#mu^{+}#mu^{-}}", -5, -2);
-  RooRealVar* sign = new RooRealVar("sign","dimuon sign", -3, 3);
+  fChain->SetBranchStatus("*", 0);
+  fChain->SetBranchStatus("fMass", 1);
+  fChain->SetBranchStatus("fPt", 1);
+  fChain->SetBranchStatus("fEta", 1);
+  fChain->SetBranchStatus("fEta1", 1);
+  fChain->SetBranchStatus("fEta2", 1);
+  fChain->SetBranchStatus("fPhi", 1);
+  fChain->SetBranchStatus("fSign", 1);
+  fChain->SetBranchStatus("fChi2pca", 1);
+  fChain->SetBranchStatus("fTauz", 1);
+  fChain->SetBranchStatus("fTauzErr", 1);
+  fChain->SetBranchStatus("fIsAmbig1", 1);
+  fChain->SetBranchStatus("fIsAmbig2", 1);
+  fChain->SetBranchStatus("fChi2MatchMCHMFT1", 1);
+  fChain->SetBranchStatus("fChi2MatchMCHMFT2", 1);
+  if (isMC) {
+    fChain->SetBranchStatus("fMcDecision", 1);
+    fChain->SetBranchStatus("fMcMask1", 1);
+    fChain->SetBranchStatus("fMcMask2", 1);
+  }
+
+  RooRealVar* mass = new RooRealVar("mass", "Mass_{#mu^{+}#mu^{-}}", 2.4, 4.0, "GeV/c^{2}");
+  RooRealVar* pt = new RooRealVar("pt", "p_{T, #mu^{+}#mu^{-}}", 0, 20, "GeV/c");
+  RooRealVar* y = new RooRealVar("y", "y_{#mu^{+}#mu^{-}}", -5, -2);
+  RooRealVar* sign = new RooRealVar("sign", "dimuon sign", -3, 3);
   RooRealVar* tauz = new RooRealVar("tauz", "#tau_{z,#mu^{+}#mu^{-}}", -0.07, 0.07);
-  RooRealVar* chi2_1 = new RooRealVar("chi2_1","#chi^{2}_{1, #mu^{+}#mu^{-}}", 0, 1000);
-  RooRealVar* chi2_2 = new RooRealVar("chi2_2","#chi^{2}_{2, #mu^{+}#mu^{-}}", 0, 1000);
+  RooRealVar* chi2_1 = new RooRealVar("chi2_1", "#chi^{2}_{1, #mu^{+}#mu^{-}}", 0, 1000);
+  RooRealVar* chi2_2 = new RooRealVar("chi2_2", "#chi^{2}_{2, #mu^{+}#mu^{-}}", 0, 1000);
+
+  // Normal dataset
   RooArgSet* varSet = new RooArgSet(*mass, *pt, *y, *sign, *tauz, *chi2_1, *chi2_2);
   RooDataSet* data = new RooDataSet("data", "data for dimuon pairs", *varSet);
+  RooRealVar* massPeak = new RooRealVar("massPeak", "Mass_{#mu^{+}#mu^{-}} peak", 2.0, 4.5, "GeV/c^{2}");
+  RooRealVar* massSB = new RooRealVar("massSB", "Mass_{#mu^{+}#mu^{-}} sidebands", 2.0, 4.5, "GeV/c^{2}");
+
+  // Sideband datasets contain the same variables needed for the
+  // tauz/background study, but use massSB rather than mass.
+  RooArgSet* sidebandVarSet = new RooArgSet(*massSB, *pt, *y, *sign, *tauz, *chi2_1, *chi2_2);
+  RooDataSet* dataPeak = new RooDataSet("dataPeak", "peak region", *sidebandVarSet);
+  RooDataSet* dataSidebandLow = new RooDataSet("dataSidebandLow", "low mass sideband", *sidebandVarSet);
+  RooDataSet* dataSidebandHigh = new RooDataSet("dataSidebandHigh", "high mass sideband", *sidebandVarSet);
+
+  // Investigate the matching distributions
+  // Only in MC
+  // TODO: initialise them only in MC
+  TH1D *hMatchesTrueTrue = new TH1D("hMatchesTrueTrue", "True matches mass_{#mu^{+}#mu^{-}}", 100, 2.4, 4.0);
+  TH1D *hMatchesTrueFake = new TH1D("hMatchesTrueFake", "True-fake or fake-true mass_{#mu^{+}#mu^{-}}", 100, 2.4, 4.0);
+  TH1D *hMatchesFakeFake = new TH1D("hMatchesFakeFake", "Fake-fake mass_{#mu^{+}#mu^{-}}", 100, 2.4, 4.0);
 
   int n_entries = fChain->GetEntries();
-  // int n_entries = 10000000;
-  for(int nEv = 0; nEv < n_entries; nEv++) {
-    if (nEv%100000==0) cout<<"processing evt "<<nEv<<"/"<<n_entries<<endl;
+  for (int nEv = 0; nEv < n_entries; nEv++) {
+    if (nEv % 100000 == 0) cout << "processing evt " << nEv << "/" << n_entries << endl;
     fChain->GetEntry(nEv);
-    
-    float rap = TMath::Log((TMath::Sqrt(fMass * fMass + fPt * fPt * TMath::CosH(fEta) * TMath::CosH(fEta)) + fPt * TMath::SinH(fEta)) /
-			   (TMath::Sqrt(fMass * fMass + fPt * fPt)));
-    
-    if (fMass<2.4 || fMass>4) continue;
-    if (fTauz<-0.07 || fTauz>0.07) continue;
-    // apply acceptance cuts
-    if (fEta1<-3.6 || fEta1>-2.5) continue;
-    if (fEta2<-3.6 || fEta2>-2.5) continue;
-    
-    if (fChi2MatchMCHMFT1 > 500 || fChi2MatchMCHMFT2 >500) continue;
-    if (fIsAmbig1 || fIsAmbig2) continue;
-    
-    // only for MC
-    // 5 --> means dimuons matched to our non-prompt J/psi signal
-    // 4 --> non-prompt psi2S
-    if (isMC) { if (fMcDecision == 0 || fMcDecision == 4) continue; }
 
-    mass->setVal(fMass);
+    float rap = TMath::Log((TMath::Sqrt(fMass * fMass + fPt * fPt * TMath::CosH(fEta) * TMath::CosH(fEta)) + fPt * TMath::SinH(fEta)) / (TMath::Sqrt(fMass * fMass + fPt * fPt)));
+
+    if (fMass < 2.0 || fMass > 4.5) continue;
+    if (fTauz < -0.07 || fTauz > 0.07) continue;
+    if (fEta1 < -3.6 || fEta1 > -2.5) continue;
+    if (fEta2 < -3.6 || fEta2 > -2.5) continue;
+    if (fChi2MatchMCHMFT1 > 500 || fChi2MatchMCHMFT2 > 500) continue;
+    if (fIsAmbig1 || fIsAmbig2) continue;
+
+    // For MC we select only the MC truth signal
+    // 4 --> Jpsi + psi2S
+    // 5 --> Only Jpsi
+    // We also plot the MFT-MCH matching distributions
+    // McMask == 0 --> true global match
+    if (isMC) {
+      if (fMcMask1 == 0 && fMcMask2 == 0) hMatchesTrueTrue->Fill(fMass);
+      if ((fMcMask1 == 0 && fMcMask2 != 0) || (fMcMask1 != 0 && fMcMask2 == 0)) hMatchesTrueFake->Fill(fMass);
+      if (fMcMask1 != 0 && fMcMask2 != 0) hMatchesFakeFake->Fill(fMass);
+      // if (fMcDecision == 0) continue;  
+    }
+
     pt->setVal(fPt);
     y->setVal(rap);
     sign->setVal(fSign);
     tauz->setVal(fTauz);
     chi2_1->setVal(fChi2MatchMCHMFT1);
     chi2_2->setVal(fChi2MatchMCHMFT2);
-    data->add(*varSet);
+
+    // TODO: remove the sidebands magic numbers...
+    if (fMass >= 2.4 && fMass <= 4.0) { mass->setVal(fMass); data->add(*varSet); }
+    if (fMass >= 2.9 && fMass <= 3.2) { massPeak->setVal(fMass); dataPeak->add(*sidebandVarSet); }
+    else if (fMass >= 2.4 && fMass < 2.8) { massSB->setVal(fMass); dataSidebandLow->add(*sidebandVarSet); }
+    else if (fMass > 3.4 && fMass <= 4.0) { massSB->setVal(fMass); dataSidebandHigh->add(*sidebandVarSet); }
   }
-  
-return data;
+
+  if (doSideBands) {
+    cout << endl;
+    cout << "Sideband datasets created:" << endl;
+    cout << "  Peak :  " << dataPeak->numEntries() << " events (2.9 < m < 3.2 GeV/c^2)" << endl;
+    cout << "  Low :  " << dataSidebandLow->numEntries() << " events (2.4 < m < 2.8 GeV/c^2)" << endl;
+    cout << "  High:  " << dataSidebandHigh->numEntries() << " events (3.4 < m < 4.0 GeV/c^2)" << endl;
+  }
+  cout << "Main dataset:" << endl;
+  cout << "  Full mass region: " << data->numEntries()  << " events (2.4 < m < 4.0 GeV/c^2)" << endl;
+
+  if (isMC) {
+    TCanvas *cMatches = new TCanvas("cMatches", "MFT-MCH matches mass");
+    cMatches->cd();
+    gPad->SetLogy();
+    hMatchesTrueTrue->GetYaxis()->SetRangeUser(1e0, 1e6);
+    hMatchesTrueTrue->SetLineColor(kRed);
+    hMatchesTrueFake->SetLineColor(kGreen);
+    hMatchesFakeFake->SetLineColor(kBlue);
+    hMatchesTrueTrue->Draw("hist");
+    hMatchesTrueFake->Draw("same hist");
+    hMatchesFakeFake->Draw("same hist");
+    cMatches->SaveAs("output/mass_distribution_MFT_MCH_matches.pdf");
+  }
+
+  return {data, dataPeak, dataSidebandLow, dataSidebandHigh};
 }
 
 TChain* getInputTree(string inputTreeFile, string treeName){

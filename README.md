@@ -22,7 +22,7 @@ This is the *master file* coordinating the full analysis.
 Run it using:
 
 ```bash
-root -l -b -q 'InputToResults.C+(ispO, isMC, caseName, remakeDS, fitMass1D, fitTauz1D, fitNpTauz1D, fit2D, plotResults)'
+root -l -b -q 'InputToResults.C+(ispO, isMC, caseName, methodName, remakeDS, fitMass1D, fitTauz1D, fitNpTauz1D, fit2D, plotResults)'
 ```
 
 ### **Arguments**
@@ -32,12 +32,15 @@ root -l -b -q 'InputToResults.C+(ispO, isMC, caseName, remakeDS, fitMass1D, fitT
 | `ispO`        | `bool`   | Use p–O collision settings                                              |
 | `isMC`        | `bool`   | Run on Monte Carlo sample                                               |
 | `caseName`    | `string` | Tag for input/output files, useful for systematics                      |
+| `methodName`  | `string` | Tag for signal/background mass seperation method                        |
 | `remakeDS`    | `bool`   | Rebuild the RooDataSet from reduced tables                              |
 | `fitMass1D`   | `bool`   | Perform 1D mass fit                                                     |
 | `fitTauz1D`   | `bool`   | Perform 1D τ<sub>z</sub> fit                                            |
 | `fitNpTauz1D` | `bool`   | Perform 1D τ<sub>z</sub> non-prompt signal fit after resolution fit     |
 | `fit2D`       | `bool`   | Perform 2D mass–τ<sub>z</sub> fit                                       |
 | `plotResults` | `bool`   | Produce and save summary plots                                          |
+
+where `methodName` currently has two options: `sPlot` and `sideBands`.
 
 This script orchestrates:
 
