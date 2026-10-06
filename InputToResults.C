@@ -23,33 +23,41 @@
 
 #include "SignalExtraction.C"
 
-void signalExtraction(bool ispO=true, bool isMC =false, const char *caseName = "nominal", bool remakeDS =false, bool fitMass=true, bool fitTauz=false, bool fitNpTauz=false, bool fitTauzBkg=false);
+void signalExtraction(bool ispO=true, bool isMC =false, const char *caseName = "nominal", const char *methodName = "sPlot", bool remakeDS =false, bool fitMass=true, bool fitTauz=false, bool fitNpTauz=false, bool fitTauzBkg=false);
 void plotResult(bool ispO=true, const char *caseName = "nominal", string axisName = "pt", int incMinCent=0, int incMaxCent=100, float incMinPt=0., float incMaxPt=50., float incMinRap=-3.5, float incMaxRap=-2.5, float incMinChi2=0, float incMaxChi2=50, bool diffChi2=false, bool isMC=false);
 
-void InputToResults(bool ispO=true, bool isMC=false, const char *caseName = "nominal", bool remakeDS = false, bool fitMass1D=true, bool fitTauz1D=false, bool fitNpTauz1D=false, bool fit2D=false, bool plotResults = false) {
+void InputToResults(bool ispO=true, bool isMC=false, const char *caseName = "nominal", const char *methodName = "sPlot", bool remakeDS = false, bool fitMass1D=true, bool fitTauz1D=false, bool fitNpTauz1D=false, bool fit2D=false, bool plotResults = false) {
   gROOT->ProcessLine(".L RooExtCBShape.cxx+");
   gROOT->ProcessLine(".L Libs/VWGPdf.cxx+");
+  RooMsgService::instance().setSilentMode(true);
+  RooMsgService::instance().setGlobalKillBelow(RooFit::ERROR);
 
-  // TODO: eventually this could be an argument in the main function
-  bool doSplot = true;
+  // TODO: Make coherent and consistent the values for the sidebands everywhere...
+  bool doSplot = false; bool doSideBands = false;
+  if (strcmp(methodName, "sPlot") == 0) doSplot = true;
+  if (strcmp(methodName, "sideBands") == 0 || strcmp(methodName, "sideBand") == 0) doSideBands = true;
+  if (doSplot && doSideBands) { cout << "[ERROR] cannot perform SPLOT and SIDEBANDS methods simultaneously" << endl; return; }
 
   if (fitMass1D) {
-    signalExtraction(ispO, isMC, caseName, remakeDS, true, false, false, false);
-    remakeDS=false;
+    // TODO: instead of adding bools to function, add a string methodName
+    // TODO: in inputUtils I create a data set for the mass with cuts in the peak range. This should be changed for the sidebands
+    // strategy and it should also change the expected value for the J/psi and the background.
+    // Maybe it can be based on the sizes of those seperate datasets?
+    signalExtraction(ispO, isMC, caseName, methodName, remakeDS, true, false, false, false); remakeDS=false;
   }
   if (fitTauz1D) {
-    // Don't do the 2-step resolution fit
-    if (!fitNpTauz1D) {
-      signalExtraction(ispO, isMC, caseName, remakeDS, false, true, false, true); remakeDS=false;
-    } 
-    // Do the 2-step resolution fit
-    else { 
-      signalExtraction(ispO, isMC, caseName, remakeDS, false, true, false, false); remakeDS=false;
-      signalExtraction(ispO, isMC, caseName, remakeDS, false, true, true, true); remakeDS=false; 
-    }
+      // Don't do the 2-step resolution fit
+      if (!fitNpTauz1D) {
+        signalExtraction(ispO, isMC, caseName, methodName, remakeDS, false, true, false, true); remakeDS=false;
+      } 
+      // Do the 2-step resolution fit
+      else { 
+        signalExtraction(ispO, isMC, caseName, methodName, remakeDS, false, true, false, false); remakeDS=false;
+        signalExtraction(ispO, isMC, caseName, methodName, remakeDS, false, true, true, true); remakeDS=false; 
+      }
   }
   if (fit2D)
-    signalExtraction(ispO, isMC, caseName, remakeDS, true, true, false, false);
+    signalExtraction(ispO, isMC, caseName, methodName, remakeDS, true, true, false, false);
 
   if (plotResults) {
     int minCent = 0;
@@ -68,9 +76,13 @@ void InputToResults(bool ispO=true, bool isMC=false, const char *caseName = "nom
   
 }
 
-void signalExtraction(bool ispO, bool isMC, const char *caseName, bool remakeDS, bool fitMass, bool fitTauz, bool fitNpTauz, bool fitTauzBkg) {
-  
-  //do the fits or at least some of them
+void signalExtraction(bool ispO, bool isMC, const char *caseName, const char *methodName, bool remakeDS, bool fitMass, bool fitTauz, bool fitNpTauz, bool fitTauzBkg) {
+  // What method to use for the mass signal - background seperation?
+  bool doSplot = false; bool doSideBands = false;
+  if (strcmp(methodName, "sPlot") == 0) doSplot = true;
+  if (strcmp(methodName, "sideBands") == 0) doSideBands = true;
+
+  // Do the fits or at least some of them
   vector< struct KinCuts >       cutVector;
   vector< map<string, string> >  parIniVector;
   vector< map<string, double> >  allResults;
@@ -99,24 +111,44 @@ void signalExtraction(bool ispO, bool isMC, const char *caseName, bool remakeDS,
   
   TFile *dsInputFile = NULL;
   RooDataSet* data = NULL;
+  RooDataSet* peak = NULL;
+  RooDataSet* lowerSideBand = NULL;
+  RooDataSet* upperSideBand = NULL;
   
   if (fileExists) {
-    cout <<"the DS file exists"<<endl;
+    cout << "the DS file exists" <<endl;
     dsInputFile = TFile::Open(dsFileName.c_str(), "READ");
     if (dsInputFile && !dsInputFile->IsZombie() && dsInputFile->IsOpen()) {
       fileIsGood = true;
-      cout <<"the DS file is good"<<endl;
+      cout << "the DS file is good" << endl;
       data = (RooDataSet*) dsInputFile->Get("data");
+      if (doSideBands) {
+        peak = (RooDataSet*) dsInputFile->Get("peak");
+        lowerSideBand = (RooDataSet*) dsInputFile->Get("lowerSideBand");
+        upperSideBand = (RooDataSet*) dsInputFile->Get("upperSideBand");
+      }
     }
   }
   
   if (remakeDS || !fileExists || !fileIsGood) {
     gSystem->mkdir("output");
     dsInputFile = TFile::Open(dsFileName.c_str(), "RECREATE");
-    data = createDataset(ispO, isMC);
+    std::array<RooDataSet*, 4> data_and_sidebands = createDataset(ispO, isMC, methodName);
+    data = data_and_sidebands[0];
+    if (doSideBands) {
+      peak = data_and_sidebands[1];
+      lowerSideBand = data_and_sidebands[2];
+      upperSideBand = data_and_sidebands[3];
+    }
     dsInputFile->cd();
-    cout <<"saving the dataset"<<endl;
+    cout << "saving the dataset" << endl;
     data->Write("data");
+    // TODO: is this actually working?
+    if (doSideBands) {
+      peak->Write("peak");
+      lowerSideBand->Write("lowerSideBand");
+      upperSideBand->Write("upperSideBand");
+    }
   }
 
     // Store the relevant fit results for the summary TSV
@@ -183,35 +215,107 @@ void signalExtraction(bool ispO, bool isMC, const char *caseName, bool remakeDS,
 			 cutVector[j].chi2.Max,
 			 cutVector[j].chi2.Min,
 			 cutVector[j].chi2.Max);
-    cout<<"cutting on "<<dsCuts<<endl;
+    cout << "cutting on " << dsCuts << endl;
     
     RooWorkspace* ws = new RooWorkspace(Form("ws_fit%s%s_%s", fitMass?"Mass":"", fitTauz?"Tauz":"", rangeLabel.c_str()));
     map<string, double> resultsFit;
 
-    cout<<"[INFO] number of entries in the dataset before reduction = "<<data->numEntries()<<endl;
+    cout << "[INFO] number of entries in the dataset before reduction = " << data->numEntries() << endl;
+    if (doSideBands) {
+      cout << "[INFO] number of entries in the peak dataset before reduction = " << peak->numEntries() << endl;
+      cout << "[INFO] number of entries in the lower sideband dataset before reduction = " << lowerSideBand->numEntries() << endl;
+      cout << "[INFO] number of entries in the upper sideband dataset before reduction = " << upperSideBand->numEntries() << endl;
+    }
     RooDataSet* cutDataset = (RooDataSet*) data->reduce(Form("%s", dsCuts.c_str()));
-    cout<<"[INFO] number of entries in the dataset after reduction = "<<cutDataset->numEntries()<<endl;
+    RooDataSet* cutDatasetPeak= NULL;
+    RooDataSet* cutDatasetLowerSideBand = NULL;
+    RooDataSet* cutDatasetUpperSideBand = NULL;
+    if (doSideBands) {
+      cutDatasetPeak = (RooDataSet*) peak->reduce(Form("%s", dsCuts.c_str()));
+      cutDatasetLowerSideBand = (RooDataSet*) lowerSideBand->reduce(Form("%s", dsCuts.c_str()));
+      cutDatasetUpperSideBand = (RooDataSet*) upperSideBand->reduce(Form("%s", dsCuts.c_str()));
+    }
+    cout << "[INFO] number of entries in the dataset after reduction = " << cutDataset->numEntries() << endl;
+    if (doSideBands) {
+      cout << "[INFO] number of entries in the peak dataset after reduction = " << cutDatasetPeak->numEntries() << endl;
+      cout << "[INFO] number of entries in the lower sideband dataset after reduction = " << cutDatasetLowerSideBand->numEntries() << endl;
+      cout << "[INFO] number of entries in the upper sideband dataset after reduction = " << cutDatasetUpperSideBand->numEntries() << endl;
+    }
     ws->import(*cutDataset);
+    if (doSideBands) {
+      ws->import(*cutDatasetPeak, RooFit::Rename("dataPeak"));
+      ws->import(*cutDatasetLowerSideBand, RooFit::Rename("dataSBLow"));
+      ws->import(*cutDatasetUpperSideBand, RooFit::Rename("dataSBHigh"));
+    }
 
-    if (fitTauz && !fitMass && !isMC) { //import the sPlot datasets
-      string sPlotFileName = Form("output/output_fitMass_%s_%s.root", ispO?"pO":"OO", caseName);
-      TFile* sPlotFile = TFile::Open(sPlotFileName.c_str());
-      RooDataSet* sPlotDs = (RooDataSet*) sPlotFile->Get(Form("sPlotDS_%s", rangeLabel.c_str()));
-      sPlotDs = (RooDataSet*) sPlotDs->reduce(Form("%s", dsCuts.c_str()));
-      RooDataSet* sPlotDsS = (RooDataSet*) sPlotDs->reduce("fJpsi_mass_sw > 0 && fJpsi_mass_sw < 50");
-      RooDataSet* sPlotDsB = (RooDataSet*) sPlotDs->reduce("fBkg_mass_sw > 0 && fBkg_mass_sw < 50");
-      
-      cout<<"[INFO] found and reduced the sPlot"<<endl;
-      
-      const RooArgSet* varSet = sPlotDs->get();
-      RooDataSet* sPlotDsSig = new RooDataSet("sPlotDsSig", "Signal-weighted dataset", sPlotDsS, *varSet, 0, "fJpsi_mass_sw");
-      RooDataSet* sPlotDsBkg = new RooDataSet("sPlotDsBkg", "Background-weighted dataset", sPlotDsB, *varSet, 0, "fBkg_mass_sw");
-      ws->import(*sPlotDsSig);
-      ws->import(*sPlotDsBkg);
+    if (fitTauz && !fitMass && !isMC) { // Import the datasets from the mass fit
+      if (doSplot) {
+        string sPlotFileName = Form("output/output_fitMass_%s_%s.root", ispO?"pO":"OO", caseName);
+        TFile* sPlotFile = TFile::Open(sPlotFileName.c_str());
+        RooDataSet* sPlotDs = (RooDataSet*) sPlotFile->Get(Form("sPlotDS_%s", rangeLabel.c_str()));
+        sPlotDs = (RooDataSet*) sPlotDs->reduce(Form("%s", dsCuts.c_str()));
+        RooDataSet* sPlotDsS = (RooDataSet*) sPlotDs->reduce("fJpsi_mass_sw > 0 && fJpsi_mass_sw < 50");
+        RooDataSet* sPlotDsB = (RooDataSet*) sPlotDs->reduce("fBkg_mass_sw > 0 && fBkg_mass_sw < 50");
+        cout << "[INFO] found and reduced the sPlot "<< endl;
+        
+        const RooArgSet* varSet = sPlotDs->get();
+        RooDataSet* sPlotDsSig = new RooDataSet("sPlotDsSig", "Signal-weighted dataset", sPlotDsS, *varSet, 0, "fJpsi_mass_sw");
+        RooDataSet* sPlotDsBkg = new RooDataSet("sPlotDsBkg", "Background-weighted dataset", sPlotDsB, *varSet, 0, "fBkg_mass_sw");
+        cout << "[DEBUG] sPlotDsSig entries = " << sPlotDsSig->numEntries() << endl;
+cout << "[DEBUG] sPlotDsSig sumEntries = " << sPlotDsSig->sumEntries() << endl;
+        ws->import(*sPlotDsSig);
+        ws->import(*sPlotDsBkg);
+      }
+      else if (doSideBands) {
+        string sideBandFileName = Form("output/output_fitMass_%s_%s.root", ispO ? "pO" : "OO", caseName);
+        TFile* sideBandFile = TFile::Open(sideBandFileName.c_str(), "READ");
+        if (!sideBandFile || sideBandFile->IsZombie()) { cout << "[ERROR] Could not open sideband file: " << sideBandFileName << endl; }
+
+        // The histograms were already created after applying dsCuts
+        // in the mass fit, so no further reduction is necessary here.
+        TH1D* hTauzPeak = dynamic_cast<TH1D*>(sideBandFile->Get(Form("hTauzPeak_%s", rangeLabel.c_str())));
+        TH1D* hTauzBkg = dynamic_cast<TH1D*>(sideBandFile->Get(Form("hTauzBkg_%s", rangeLabel.c_str())));
+        TH1D* hTauzSB = dynamic_cast<TH1D*>(sideBandFile->Get(Form("hTauzSB_%s", rangeLabel.c_str())));
+        TH1D* hTauzSignal = dynamic_cast<TH1D*>(sideBandFile->Get(Form("hTauzSignal_%s", rangeLabel.c_str())));
+        if (!hTauzPeak || !hTauzBkg || hTauzSB || !hTauzSignal) {
+          cout << "[ERROR] Could not find sideband histograms for " << rangeLabel << endl;
+          cout << "  hTauzPeak   = " << hTauzPeak << endl;
+          cout << "  hTauzBkg    = " << hTauzBkg << endl;
+          cout << "  hTauzSB    = " << hTauzSB << endl;
+          cout << "  hTauzSignal = " << hTauzSignal << endl;
+        }
+        cout << "[INFO] Found sideband histograms for " << rangeLabel << endl;
+        cout << "[INFO] hTauzPeak   entries = " << hTauzPeak->GetEntries() << endl;
+        cout << "[INFO] hTauzBkg    entries = " << hTauzBkg->GetEntries() << endl;
+        cout << "[INFO] hTauzSB    entries = " << hTauzSB->GetEntries() << endl;
+        cout << "[INFO] hTauzSignal entries = " << hTauzSignal->GetEntries() << endl;
+
+        // Make local copies so the histograms remain valid after closing
+        // the input ROOT file.
+        TH1D* hTauzPeakLocal = dynamic_cast<TH1D*>(hTauzPeak->Clone("hTauzPeak_local"));
+        TH1D* hTauzBkgLocal = dynamic_cast<TH1D*>(hTauzBkg->Clone("hTauzBkg_local"));
+        TH1D* hTauzSBLocal = dynamic_cast<TH1D*>(hTauzSB->Clone("hTauzSB_local"));
+        TH1D* hTauzSignalLocal = dynamic_cast<TH1D*>(hTauzSignal->Clone("hTauzSignal_local"));
+        hTauzPeakLocal->SetDirectory(nullptr);
+        hTauzBkgLocal->SetDirectory(nullptr);
+        hTauzSBLocal->SetDirectory(nullptr);
+        hTauzSignalLocal->SetDirectory(nullptr);
+        sideBandFile->Close();
+
+        // Convert the histograms to RooDataHist objects for the tauz fits.
+        RooDataHist tauzPeakData("tauzPeakData", "Peak #tau_{z} distribution", RooArgList(*ws->var("tauz")), hTauzPeakLocal);
+        RooDataHist tauzBkgData("tauzBkgData", "Scaled Sideband background #tau_{z} distribution", RooArgList(*ws->var("tauz")), hTauzBkgLocal);
+        RooDataHist tauzSBData("tauzSBData", "Unscaled Sideband background #tau_{z} distribution", RooArgList(*ws->var("tauz")), hTauzSBLocal);
+        RooDataHist tauzSignalData("tauzSignalData", "Background-subtracted signal #tau_{z} distribution", RooArgList(*ws->var("tauz")), hTauzSignalLocal);
+        ws->import(tauzPeakData);
+        ws->import(tauzBkgData);
+        ws->import(tauzSBData);
+        ws->import(tauzSignalData);
+        cout << "[INFO] Imported sideband RooDataHist objects into workspace" << endl; }
     }
     
     resultsFit.clear();
-    resultsFit = SignalExtraction1Fit(parIniVector[j], ws, caseName, rangeLabel, ispO, isMC, fitMass, fitTauz, fitNpTauz, fitTauzBkg, cutVector[j]);
+    resultsFit = SignalExtraction1Fit(parIniVector[j], ws, caseName, methodName, rangeLabel, ispO, isMC, fitMass, fitTauz, fitNpTauz, fitTauzBkg, cutVector[j]);
     resultsFit["centMin"] = cutVector[j].cent.Start;
     resultsFit["centMax"] = cutVector[j].cent.End;
     resultsFit["ptMin"] = cutVector[j].pt.Min;
@@ -272,7 +376,7 @@ void signalExtraction(bool ispO, bool isMC, const char *caseName, bool remakeDS,
 
     fitSummary.push_back(summaryRow);
 
-    //transform the results into trees
+    // Transform the results into trees
     fSave->cd();
     TTree* resTree = new TTree(Form("tree_%s_new", rangeLabel.c_str()), "Tree of results");
     
@@ -280,29 +384,44 @@ void signalExtraction(bool ispO, bool isMC, const char *caseName, bool remakeDS,
     
     // Create branches for each map entry
     for (const auto& entry : resultsFit) {
-        branches[entry.first] = new double;
-        resTree->Branch(entry.first.c_str(), branches[entry.first]);
+      branches[entry.first] = new double;
+      resTree->Branch(entry.first.c_str(), branches[entry.first]);
     }
 
     // Fill the resTree with data from the map
     for (const auto& entry : resultsFit) {
-        *(branches[entry.first]) = entry.second;
-	cout <<"filling tree with "<<entry.first<<" = "<<entry.second<<endl;
+      *(branches[entry.first]) = entry.second;
+      cout << "filling tree with " << entry.first << " = " << entry.second << endl;
     }
-    resTree->Fill(); //just fill one entry in the tree (make a different tree for each fit to allow updating)
-    
-    //check if the ws exists, if yes delete it and save it again
+    resTree->Fill(); // Just fill one entry in the tree (make a different tree for each fit to allow updating)
+
+    // Check if the ws exists, if yes delete it and save it again
     TObject* obj = fSave->Get(Form("tree_%s", rangeLabel.c_str()));
-    if (obj) {
-      fSave->Delete(Form("tree_%s;*",rangeLabel.c_str()));
+    if (obj) { fSave->Delete(Form("tree_%s;*",rangeLabel.c_str())); }
+    // Delete old objects if they still exist
+    if (doSplot && fitMass && !fitTauz && !isMC && fSave->Get(Form("sPlotDS_%s", rangeLabel.c_str()))) {
+      fSave->Delete(Form("sPlotDS_%s;*", rangeLabel.c_str()));
     }
-    if (fitMass && !fitTauz && !isMC && fSave->Get(Form("sPlotDS_%s", rangeLabel.c_str()))) {
-      fSave->Delete(Form("sPlotDS_%s;*",rangeLabel.c_str()));
+    if (doSideBands && fitMass && !fitTauz && !isMC) {
+      fSave->Delete(Form("hTauzPeak_%s;*", rangeLabel.c_str()));
+      fSave->Delete(Form("hTauzBkg_%s;*", rangeLabel.c_str()));
+      fSave->Delete(Form("hTauzSB_%s;*", rangeLabel.c_str()));
+      fSave->Delete(Form("hTauzSignal_%s;*", rangeLabel.c_str()));
     }
-    
+
+    // If they don't exist yet, create them after the mass fit
     fSave->cd();
-    if (fitMass && !fitTauz && !isMC) ws->data("data_sPlot")->Write(Form("sPlotDS_%s", rangeLabel.c_str()));
-    resTree->Write(Form("tree_%s", rangeLabel.c_str()));//, TObject::kOverwrite);
+    if (doSplot && fitMass && !fitTauz && !isMC) {
+      ws->data("data_sPlot")->Write(Form("sPlotDS_%s", rangeLabel.c_str()));
+    }
+    if (doSideBands && fitMass && !fitTauz && !isMC) {
+      ws->obj("hTauzPeak")->Write(Form("hTauzPeak_%s", rangeLabel.c_str()));
+      ws->obj("hTauzBkg")->Write(Form("hTauzBkg_%s", rangeLabel.c_str()));
+      ws->obj("hTauzSB")->Write(Form("hTauzSB_%s", rangeLabel.c_str()));
+      ws->obj("hTauzSignal")->Write(Form("hTauzSignal_%s", rangeLabel.c_str()));
+      cout << "saving::success" << endl;
+    }
+    resTree->Write(Form("tree_%s", rangeLabel.c_str()));
   }
   fSave->Close();
 
