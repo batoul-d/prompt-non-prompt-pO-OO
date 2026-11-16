@@ -170,6 +170,7 @@ TLatex *varLatex (RooWorkspace *ws, map<string, string> parIni, double chi2ndf, 
   textVar->SetTextAlign(12);
   textVar->SetTextFont(43);
   textVar->SetTextSize(17); // Size in pixel height
+  // Can be commented to avoid drawing the chi2 in the plots
   textVar->DrawLatex(xText, yText, Form("#chi^{2}/ndf = %.2f", chi2ndf));
   yText = yText-0.04;
   
@@ -179,7 +180,7 @@ TLatex *varLatex (RooWorkspace *ws, map<string, string> parIni, double chi2ndf, 
     // TODO: sometimes it might be useful to display them... comment this line below
     if (it->first.rfind("free_", 0) == 0) continue;
     if (it->first.find("fit")!=std::string::npos || it->first.find("model")!=std::string::npos) continue;
-    // if (ws->var(it->first.c_str())->isConstant()) continue;
+    if (ws->var(it->first.c_str())->isConstant()) continue;
     if (fitMass && fitTauz) {
       if (!(it->first.find("_tauzMass")!=std::string::npos || it->first.find("_tauzSig")!=std::string::npos)) // include the lambda for the tauz nonprompt
 	continue;
@@ -189,7 +190,8 @@ TLatex *varLatex (RooWorkspace *ws, map<string, string> parIni, double chi2ndf, 
     }
     else if (!fitMass && fitTauz) {
       if (fitTauzRes) {
-        if (!(it->first.find("_tauzRes") != std::string::npos || it->first.find("_tauzSig")!=std::string::npos) || it->first == "xMaxRes") continue;
+        // if (!(it->first.find("_tauzRes") != std::string::npos || it->first.find("_tauzSig")!=std::string::npos) || it->first == "xMaxRes") continue;
+        if (!(it->first.find("_tauzRes") != std::string::npos || it->first.find("_tauzSig")!=std::string::npos)) continue;
       }
       else if(fitTauzBkg) {
 	if (!(it->first.find("_tauzBkg")!=std::string::npos)) continue; 
@@ -198,15 +200,13 @@ TLatex *varLatex (RooWorkspace *ws, map<string, string> parIni, double chi2ndf, 
       else if (!(it->first.find("_tauzSig")!=std::string::npos)) continue; 
     }
     if (it->first.find("si2s")!=std::string::npos) continue;
-    // if (ws->var(it->first.c_str())->getError()==0 && it->first != "xMaxRes") continue;
+    if (ws->var(it->first.c_str())->getError()==0 && it->first != "xMaxRes") continue;
     cout << "[INFO] writing variable " << it->first.c_str() << " = ";
     cout << ws->var(it->first.c_str())->getValV();
     cout << " err = "<<ws->var(it->first.c_str())->getError() << endl;
     
-    if (it->first == "xMaxRes") {textVar->DrawLatex(xText, yText, Form("%s = %g", varFancyLabel(it->first.c_str()).c_str(), ws->var(it->first.c_str())->getValV()));
-    }
-    else { textVar->DrawLatex(xText, yText, Form("%s = %g #pm %g", varFancyLabel(it->first.c_str()).c_str(), ws->var(it->first.c_str())->getValV(), ws->var(it->first.c_str())->getError()));
-    }
+    if (it->first == "xMaxRes") {textVar->DrawLatex(xText, yText, Form("%s = %g", varFancyLabel(it->first.c_str()).c_str(), ws->var(it->first.c_str())->getValV())); }
+    else { textVar->DrawLatex(xText, yText, Form("%s = %g #pm %g", varFancyLabel(it->first.c_str()).c_str(), ws->var(it->first.c_str())->getValV(), ws->var(it->first.c_str())->getError())); }
     yText = yText-0.04;
   }
   return textVar;

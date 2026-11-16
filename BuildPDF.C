@@ -278,7 +278,7 @@ void buildPDF_2D(RooWorkspace* ws, bool isMC){
     ws->factory("SUM::totPDF_2D(fJpsi_tauzMass*tauzMassTotJpsiPDF, fPsi2s_tauzMass*tauzMassTotPsi2sPDF, fBkg_tauzMass*tauzMassTotBkgPDF)");
   }
   else {
-    ws->factory("SUM::totPDF_2D(fJpsi_tauzMass*tauzMassTotJpsiPDF, fPsi2s_tauzMass*tauzMassTotPsi2sPDF");
+    ws->factory("SUM::totPDF_2D(fJpsi_tauzMass*tauzMassTotJpsiPDF, fPsi2s_tauzMass*tauzMassTotPsi2sPDF)");
   }
 }
 
@@ -295,12 +295,11 @@ void setDefaultParameters(map<string, string>& parIni, double nEntriesDS){
   varMap["b_jpsi_tauzMass"] = {0.2, 0.01, 0.5};
   varMap["b_psi2s_tauzMass"] = {0.2, 0, 1};
   varMap["b_bkg_tauzMass"] = {0.2, 0, 1};
-  std::cout << "nEntriesDS (for this bin?) = " << nEntriesDS << std::endl;
   varMap["fJpsi_tauzMass"] = {0.01*nEntriesDS, 0, 2.0*nEntriesDS};
   varMap["fPsi2s_tauzMass"] = {0.0001*nEntriesDS, 0, 2.0*nEntriesDS};
   varMap["fBkg_tauzMass"] = {0.1*nEntriesDS, 0, 2.0*nEntriesDS};
   
-  varMap["fJpsi_mass"] = {0.001*nEntriesDS, 0, 2.0*nEntriesDS};
+  varMap["fJpsi_mass"] = {0.01*nEntriesDS, 0, 2.0*nEntriesDS}; // upper bound can be increased if MC fits are not converging
   varMap["fPsi2s_mass"] = {0.0001*nEntriesDS, 0, 0.2*nEntriesDS};
   varMap["fBkg_mass"] = {0.1*nEntriesDS, 0, 2.0*nEntriesDS};
   
@@ -311,29 +310,22 @@ void setDefaultParameters(map<string, string>& parIni, double nEntriesDS){
   varMap["alpha1_mass"] = {1., 0, 5};
   varMap["n1_mass"] = {3., 0, 5};
 
-  // Optimised for OO bin [0, 1]
-  /*
-  varMap["alpha0_mass"] = {0.605, 0.605, 0.605};
-  varMap["n0_mass"] = {2.72, 2.72, 2.72};
-  varMap["alpha1_mass"] = {2.501, 2.501, 2.501};
-  varMap["n1_mass"] = {1.76, 1.76, 1.76};
-  */
-
   varMap["c0_mass"] = {0, -2, 2};
   varMap["c1_mass"] = {0, -2, 2};
   varMap["c2_mass"] = {0, -2, 2};
   varMap["c3_mass"] = {0, -2, 2};
   varMap["c4_mass"] = {0, -2, 2};
   
-  if (parIni["modelBkg_mass"]=="VWG") {
+  if (parIni["modelBkg_mass"] == "VWG") {
     varMap["A_mass"] = {2.0, 0.0, 10.3};
     varMap["B_mass"] = {0.2, 0.0001, 10.0};
     varMap["C_mass"] = {0.5, -1.0, 10.0};
   }
 
   // TODO: uncomment these blocks after 2nd step fits are validated!!!
-  varMap["xMaxRes"] = {0, -0.02, 0.02};
-  varMap["mean_tauzRes"] = {0, -0.0005, 0.0005};
+  varMap["xMaxRes"] = {0, -0.0002, 0.0002};
+  // varMap["mean_tauzRes"] = {0, -0.000005, 0.000005};
+  varMap["mean_tauzRes"] = {0, -0.0002, 0.0002};
   if (parIni["model_tauzRes"]=="extCB" || parIni["model_tauzRes"]=="CB") {
     varMap["sigma_tauzRes"] = {0.00045, 0.0002, 0.0010};
     varMap["alpha_tauzRes"] = {1, 0., 3};
@@ -342,11 +334,11 @@ void setDefaultParameters(map<string, string>& parIni, double nEntriesDS){
   if (parIni["model_tauzRes"] == "Gauss2" || parIni["model_tauzRes"] == "Gauss3" || parIni["model_tauzRes"] == "Gauss4") {
     varMap["sigma0_tauzRes"] = {0.00045, 0.0002, 0.0010};
     varMap["sigma1_tauzRes"] = {0.00045, 0.0002, 0.0010};
-    varMap["fGaus0_tauzRes"] = {0.7, 0.5, 0.8};
+    varMap["fGaus0_tauzRes"] = {0.7, 0.4, 0.95};
   }
   if (parIni["model_tauzRes"] == "Gauss3" || parIni["model_tauzRes"] == "Gauss4") {
     varMap["sigma2_tauzRes"] = {0.00045, 0.0002, 0.0010};
-    varMap["fGaus1_tauzRes"] = {0.2, 0.1, 0.4};
+    varMap["fGaus1_tauzRes"] = {0.2, 0.05, 0.4};
   }
   if (parIni["model_tauzRes"] == "Gauss4") {
     varMap["sigma3_tauzRes"] = {0.00045, 0.0002, 0.0030};
@@ -359,9 +351,9 @@ void setDefaultParameters(map<string, string>& parIni, double nEntriesDS){
   varMap["fDfssNpr_tauzBkg"] = {0.8, 0.2, 0.9};
   varMap["fDNpr_tauzBkg"] = {0.9, 0.2, 0.95};
   varMap["fb_tauzBkg"] = {0.8, 0., 1.};
-  varMap["lambdaDssNpr_tauzBkg"] = {0.055, 0.0001, 0.02};
-  varMap["lambdaDfNpr_tauzBkg"] = {0.030, 0.00001, 0.02};
-  varMap["lambdaDdsNpr_tauzBkg"] = {0.045, 0.0001, 0.02};
+  varMap["lambdaDssNpr_tauzBkg"] = {0.055, 0.0001, 0.08};
+  varMap["lambdaDfNpr_tauzBkg"] = {0.030, 0.00001, 0.08};
+  varMap["lambdaDdsNpr_tauzBkg"] = {0.045, 0.0001, 0.08};
   
   for (auto it = varMap.begin(); it != varMap.end(); ++it) {
     cout << "[INFO] adding the default parameters for " << it->first << endl;
@@ -383,7 +375,7 @@ void setDefaultParameters(map<string, string>& parIni, double nEntriesDS){
 void fixParPDF(RooWorkspace* ws, RooFitResult* fitResult, map<string, string> &parIni, bool ispO, string rangeLabel, const char *caseName, bool fromMassPDF, bool fromTauzResPDF, bool fromNpTauzResPDF, bool fromTauzBkgPDF, bool biasLambdaPar) {
   std::vector<std::string> fixedPars;
   std::vector<std::string> biasedPars; // used as input for 2nd step of resolution fit
-  double bias = 0.3;
+  double bias = 0.1;
   if (fromMassPDF) {
     if (parIni["modelSig_mass"]=="Gauss") {
       fixedPars.push_back("mean_mass");
@@ -493,6 +485,7 @@ else if (fromTauzBkgPDF) {
     fixedPars.push_back("lambdaDdsNpr_tauzBkg");
     fixedPars.push_back("lambdaDfNpr_tauzBkg");
   }
+  fixedPars.push_back("fb_tauzBkg");
 }
 
 if (biasLambdaPar) { biasedPars.push_back("lambdaDssNpr_tauzSig"); }

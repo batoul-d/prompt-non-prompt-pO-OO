@@ -29,8 +29,9 @@ void plotResult(bool ispO=true, const char *caseName = "nominal", string axisNam
 void InputToResults(bool ispO=true, bool isMC=false, const char *caseName = "nominal", const char *methodName = "sPlot", bool remakeDS = false, bool fitMass1D=true, bool fitTauz1D=false, bool fitNpTauz1D=false, bool fit2D=false, bool plotResults = false) {
   gROOT->ProcessLine(".L RooExtCBShape.cxx+");
   gROOT->ProcessLine(".L Libs/VWGPdf.cxx+");
-  RooMsgService::instance().setSilentMode(true);
-  RooMsgService::instance().setGlobalKillBelow(RooFit::ERROR);
+  // Enable the lines below to make roofit shut up its verbosity (or enable for debugging)
+  // RooMsgService::instance().setSilentMode(true);
+  // RooMsgService::instance().setGlobalKillBelow(RooFit::ERROR);
 
   // TODO: Make coherent and consistent the values for the sidebands everywhere...
   bool doSplot = false; bool doSideBands = false;
@@ -160,6 +161,10 @@ void signalExtraction(bool ispO, bool isMC, const char *caseName, const char *me
       double fb_err;
       double N_jpsi;
       double N_jpsi_err;
+      double alpha0_mass;
+      double n0_mass;
+      double alpha1_mass;
+      double n1_mass;
       double c0_mass;
       double c0_mass_err;
       double c1_mass;
@@ -262,7 +267,7 @@ void signalExtraction(bool ispO, bool isMC, const char *caseName, const char *me
         RooDataSet* sPlotDsSig = new RooDataSet("sPlotDsSig", "Signal-weighted dataset", sPlotDsS, *varSet, 0, "fJpsi_mass_sw");
         RooDataSet* sPlotDsBkg = new RooDataSet("sPlotDsBkg", "Background-weighted dataset", sPlotDsB, *varSet, 0, "fBkg_mass_sw");
         cout << "[DEBUG] sPlotDsSig entries = " << sPlotDsSig->numEntries() << endl;
-cout << "[DEBUG] sPlotDsSig sumEntries = " << sPlotDsSig->sumEntries() << endl;
+        cout << "[DEBUG] sPlotDsSig sumEntries = " << sPlotDsSig->sumEntries() << endl;
         ws->import(*sPlotDsSig);
         ws->import(*sPlotDsBkg);
       }
@@ -347,6 +352,10 @@ cout << "[DEBUG] sPlotDsSig sumEntries = " << sPlotDsSig->sumEntries() << endl;
     summaryRow.fb_err = getResult("b_jpsi_tauzMass_err");
     summaryRow.N_jpsi = getResult("fJpsi_mass");
     summaryRow.N_jpsi_err = getResult("fJpsi_mass_err");
+    summaryRow.alpha0_mass = getResult("alpha0_mass");
+    summaryRow.n0_mass = getResult("n0_mass");
+    summaryRow.alpha1_mass = getResult("alpha1_mass");
+    summaryRow.n1_mass = getResult("n1_mass");
     summaryRow.c0_mass = getResult("c0_mass");
     summaryRow.c0_mass_err = getResult("c0_mass_err");
     summaryRow.c1_mass = getResult("c1_mass");
@@ -441,6 +450,10 @@ cout << "[DEBUG] sPlotDsSig sumEntries = " << sPlotDsSig->sumEntries() << endl;
     << "fit chi2 (last performed)\t"
     << "fb\t"
     << "N_Jpsi\t"
+    << "alpha0_mass\t"
+    << "n0_mass\t"
+    << "alpha1_mass\t"
+    << "n1_mass\t"
     << "c0_mass\t"
     << "c1_mass\t"
     << "c2_mass\t"
@@ -457,7 +470,7 @@ cout << "[DEBUG] sPlotDsSig sumEntries = " << sPlotDsSig->sumEntries() << endl;
     << "\n";
 
   // Case name on second row
-  tsvFile << caseName << "\t\t\t\t\t\t\t\t\t\t\t\n";
+  tsvFile << caseName << "\t\t\t\t\t\t\t\t\t\t\t\t\t\t\t\n";
 
   // Data rows
   tsvFile << std::setprecision(5);
@@ -469,6 +482,10 @@ cout << "[DEBUG] sPlotDsSig sumEntries = " << sPlotDsSig->sumEntries() << endl;
       << row.fitChi2 << "\t"
       << row.fb << " (" << row.fb_err << ")" << "\t"
       << row.N_jpsi << " (" << row.N_jpsi_err << ")" << "\t"
+      << row.alpha0_mass << "\t"
+      << row.n0_mass << "\t"
+      << row.alpha1_mass << "\t"
+      << row.n1_mass << "\t"
       << row.c0_mass << " (" << row.c0_mass_err << ")" << "\t"
       << row.c1_mass << " (" << row.c1_mass_err << ")" << "\t"
       << row.c2_mass << " (" << row.c2_mass_err << ")" << "\t"
