@@ -55,7 +55,8 @@ map<string, double> SignalExtraction1Fit(map<string, string>& parIni, RooWorkspa
   }
 
   // Number of bins to be drawn (does not affect fitting)
-  int nBins = 100;
+  int nBinsMass = 80; // used for mass only
+  int nBins = 100; // used for tauz only
 
   // Set range for plotting and fitting the mass
   // Make sure to also modify this accordingly in the inputUtils.h !!
@@ -65,6 +66,8 @@ map<string, double> SignalExtraction1Fit(map<string, string>& parIni, RooWorkspa
   // Set range for plotting the tau_z
   double tauzMin = -0.02;
   double tauzMax = 0.02;
+  double tauzMinFitting = -0.02;
+  double tauzMaxFitting = 0.02;
 
   int nParTauzRes = -1;
 
@@ -88,8 +91,10 @@ map<string, double> SignalExtraction1Fit(map<string, string>& parIni, RooWorkspa
       ws->import(*sPlotDs);
     }
     else {
-      RooFitResult* fitResult_mass = ws->pdf("totPDF_mass")->fitTo(*ws->data("data"), Extended(kTRUE), Range(massMin, massMax), SumW2Error(true), RooFit::Save());
-      if (!isMC) { 
+      std::cout << "before mass fit sigma = " << ws->var("sigma_mass")->getVal() << " +/- " << ws->var("sigma_mass")->getError() << std::endl;
+      RooFitResult* fitResult_mass = ws->pdf("totPDF_mass")->fitTo(*ws->data("data"), Extended(true), Range(massMin, massMax), SumW2Error(true), RooFit::Save());
+      std::cout << "after mass fit sigma = " << ws->var("sigma_mass")->getVal() << " +/- " << ws->var("sigma_mass")->getError() << std::endl;
+      if (!isMC) {
         if (doSplot) {
           RooDataSet* sPlotDs = (RooDataSet*) ws->data("data")->Clone("data_sPlot");
           RooStats::SPlot* sData = new RooStats::SPlot("sData", "sPlot", *sPlotDs, ws->pdf("totPDF_mass"), RooArgList(*ws->var("fJpsi_mass"), *ws->var("fBkg_mass")));
@@ -112,8 +117,8 @@ map<string, double> SignalExtraction1Fit(map<string, string>& parIni, RooWorkspa
           if (!bkgPDF || !mass) { cout << "[ERROR] Could not find mass or bkgPDF_mass!" << endl; }
 
           RooArgSet massSet(*mass);
-          mass->setRange("peak",   2.9, 3.2);
-          mass->setRange("lowSB",  2.4, 2.8);
+          mass->setRange("peak", 2.9, 3.2);
+          mass->setRange("lowSB", 2.4, 2.8);
           mass->setRange("highSB", 3.4, 4.0);
 
           // Integral of the background PDF in the peak region
@@ -197,20 +202,26 @@ map<string, double> SignalExtraction1Fit(map<string, string>& parIni, RooWorkspa
   else if (!fitMass && fitTauz && !isMC) {
     // Step 1: resolution fit on negative tauz range
     if (!fitNpTauz) {
-      RooPlot* tauzResFrame = ws->var("tauz")->frame(Range(tauzMin, 0), Bins(nBins));
+      RooPlot* tauzResFrame = ws->var("tauz")->frame(Range(tauzMinFitting, 0), Bins(nBins));
       ws->data(sigDataSet)->plotOn(tauzResFrame, DataError(RooAbsData::SumW2));
-      RooHist* hist = (RooHist*) tauzResFrame->getObject(0);
+
+      // We need a very fine binning to estimate the xMaxRes
+      RooPlot* tauzResFrameXmaxRes = ws->var("tauz")->frame(Range(-0.000005, 0), Bins(nBins));
+      ws->data(sigDataSet)->plotOn(tauzResFrameXmaxRes, DataError(RooAbsData::SumW2));
+      RooHist* hist = (RooHist*) tauzResFrameXmaxRes->getObject(0);
       ws->var("xMaxRes")->setVal(getMax(hist));
       double xMaxRes = ws->var("xMaxRes")->getVal(); // to get the mean of the resolution function
       // xMaxRes = 0.;
-      cout << " [INFO] xMaxRes = " << xMaxRes << " ns" << endl;
+      cout << "[INFO] xMaxRes = " << xMaxRes << " ns" << endl;
       ws->var("mean_tauzRes")->setVal(xMaxRes);
-      double bias = 0.2;
-      ws->var("mean_tauzRes")->setMin(ws->var("mean_tauzRes")->getVal() - bias * std::abs(ws->var("mean_tauzRes")->getVal()));
-      ws->var("mean_tauzRes")->setMax(ws->var("mean_tauzRes")->getVal() + bias * std::abs(ws->var("mean_tauzRes")->getVal()));
+      // double bias = 0.2;
+      // ws->var("mean_tauzRes")->setMin(ws->var("mean_tauzRes")->getVal() - bias * std::abs(ws->var("mean_tauzRes")->getVal()));
+      // ws->var("mean_tauzRes")->setMax(ws->var("mean_tauzRes")->getVal() + bias * std::abs(ws->var("mean_tauzRes")->getVal()));
+      std::cout << "[INFO] mean_tauzRes_min = " << ws->var("mean_tauzRes")->getMin() << std::endl;
+      std::cout << "[INFO] mean_tauzRes_max = " << ws->var("mean_tauzRes")->getMax() << std::endl;
       // ws->var("mean_tauzRes")->setConstant(kTRUE);
 
-      ws->var("tauz")->setRange("neg", ws->var("tauz")->getMin(), xMaxRes);
+      ws->var("tauz")->setRange("neg", tauzMinFitting, xMaxRes);
       RooDataSet* sPlotDsNeg = (RooDataSet*) ws->data(sigDataSet)->reduce(Form("tauz < %f", xMaxRes));
       ws->import(*sPlotDsNeg, RooFit::Rename("sPlotDsSigNeg"));
       RooFitResult* fitResult_tauzRes = ws->pdf("tauzResPDF")->fitTo(*ws->data("sPlotDsSigNeg"), Extended(kFALSE), SumW2Error(true), RooFit::Save(), Range("neg"));
@@ -223,22 +234,55 @@ map<string, double> SignalExtraction1Fit(map<string, string>& parIni, RooWorkspa
     else {
         // Take parameters from 1st step
         fixParPDF(ws, NULL, parIni, ispO, rangeLabel, caseName, 0, 1, 1, 0, 0);
-        RooFitResult* fitResult_tauz = ws->pdf("tauzSigPDF")->fitTo(*ws->data(sigDataSet), Extended(kFALSE), SumW2Error(true), RooFit::Save(), Range(tauzMin, tauzMax));
+        RooFitResult* fitResult_tauz = ws->pdf("tauzSigPDF")->fitTo(*ws->data(sigDataSet), Extended(kFALSE), SumW2Error(true), RooFit::Save(), Range(tauzMinFitting, tauzMaxFitting));
         cout << "[INFO] done with the tauz Sig fit" << endl;
         // Before fixing the parameters, we should get the number of free parameters used in the fit for the chi2 later
-        nParTauzRes = ws->pdf("tauzSigPDF")->getParameters(*ws->data(sigDataSet))->selectByAttrib("Constant",kFALSE)->getSize();
+        nParTauzRes = ws->pdf("tauzSigPDF")->getParameters(*ws->data(sigDataSet))->selectByAttrib("Constant", kFALSE)->getSize();
         fixParPDF(ws, fitResult_tauz, parIni, ispO, rangeLabel, caseName, 0, 1, 0, 0, 1);
         cout << "[INFO] done with fixing the params for tauz resolution 2nd step" << endl;
     }
     // Do the background fit using the resolution
     if (fitTauzBkg) {
-      RooFitResult* fitResult_tauzBkg = ws->pdf("tauzBkgPDF")->fitTo(*ws->data(bkgDataSet), Extended(kFALSE), SumW2Error(true), RooFit::Save());
+      /*
+      TH1* hTauzBkg = (TH1*)ws->data(bkgDataSet)->createHistogram("h1", *ws->var("tauz"));
+      // Below is wrong, because histogram is not filled with ->Fill()
+      std::cout << "number of entries = " << hTauzBkg->GetEntries() << std::endl;
+      TH1* hNoNegativeEntriesTauzBkg = (TH1*)hTauzBkg->Clone("hNoNegativeEntriesTauzBkg");
+      for (int i_bin = 1; i_bin < hTauzBkg->GetNbinsX(); i_bin++) {
+        double binCenter = hTauzBkg->GetBinCenter(i_bin);
+        double content   = hTauzBkg->GetBinContent(i_bin);
+        double error   = hTauzBkg->GetBinError(i_bin);
+        std::cout << "Bin " << i_bin  << " | tauz val = " << binCenter  << " | content = " << content << std::endl;
+        // Remove negative entries
+        if (content < 0) {
+          std::cout << "NEGATIVE entry = " << content << std::endl;
+          hNoNegativeEntriesTauzBkg->SetBinContent(i_bin, 0);
+          hNoNegativeEntriesTauzBkg->SetBinError(i_bin, 0);
+        } else {
+          hNoNegativeEntriesTauzBkg->SetBinContent(i_bin, content);
+          hNoNegativeEntriesTauzBkg->SetBinError(i_bin, error);
+        }
+      }
+      for (int i_bin = 1; i_bin < hNoNegativeEntriesTauzBkg->GetNbinsX(); i_bin++) {
+        double binCenter = hNoNegativeEntriesTauzBkg->GetBinCenter(i_bin);
+        double content = hNoNegativeEntriesTauzBkg->GetBinContent(i_bin);
+        double error = hNoNegativeEntriesTauzBkg->GetBinError(i_bin);
+        std::cout << "Bin after removing negative/0 " << i_bin  << " | tauz val = " << binCenter  << " | content = " << content << std::endl;
+      }
+      // transform again into roofit dataset
+      // perform fit again
+      // RooDataHist cleanDataHist("cleanDataHist", "Binned dataset without negatieve bins", *ws->var("tauz"), hNoNegativeEntriesTauzBkg);
+      */
+      // RooFitResult* fitResult_tauzBkg = ws->pdf("tauzBkgPDF")->fitTo(cleanDataHist, Extended(false), SumW2Error(true), RooFit::Save());
+      RooFitResult* fitResult_tauzBkg = ws->pdf("tauzBkgPDF")->fitTo(*ws->data(bkgDataSet), Extended(false), SumW2Error(true), RooFit::Save());
       cout << "[INFO] done with tauz bkg fit" << endl;
+      fixParPDF(ws, fitResult_tauzBkg, parIni, ispO, rangeLabel, caseName, 0, 0, 0, 1, 0);
+      cout << "[INFO] done with fixing the params for tauz background fit" << endl;
     }
   }
   else if (!fitMass && fitTauz && isMC) {
     // Fit the non-prompt signal: exponential decay convoluted with the detector resolution (MC)
-    RooFitResult* fitResult_tauzNpr = ws->pdf("tauzNprSigPDF")->fitTo(*ws->data("data"), Extended(kFALSE), SumW2Error(true), RooFit::Save());
+    RooFitResult* fitResult_tauzNpr = ws->pdf("tauzNprSigPDF")->fitTo(*ws->data("data"), Extended(false), SumW2Error(true), RooFit::Save());
     cout << "[INFO] Done with MC non-prompt tauz fit" << endl;
     // fitResult_tauzNpr->Print();
   }
@@ -251,9 +295,39 @@ map<string, double> SignalExtraction1Fit(map<string, string>& parIni, RooWorkspa
     // TODO: actually don't do this when you don't do the 2nd step resolution fit
     fixParPDF(ws, NULL, parIni, ispO, rangeLabel, caseName, false, true, false, false, true);
     // Fix tauz-background parameters from the 1D tauz fit
-    if (!isMC && fitTauzBkg) { fixParPDF(ws, NULL, parIni, ispO, rangeLabel, caseName, false, false, false, true, false); }
-
+    /*
+    if (!isMC) { 
+      fixParPDF(ws, NULL, parIni, ispO, rangeLabel, caseName, false, false, false, true, false); 
+    }
+    */
+   if (!isMC) {
+    /*
+    std::cout << "\n[INFO] Parameters BEFORE fixParPDF:" << std::endl;
+    for (const auto& par : parIni) {
+      if (auto* var = ws->var(par.first.c_str())) {
+        std::cout << "  " << par.first << " = " << var->getVal() << " ± " << var->getError() << ", constant = " << (var->isConstant() ? "true" : "false") << std::endl; 
+      }
+    }
+    */
+    fixParPDF(ws, NULL, parIni, ispO, rangeLabel, caseName, false, false, false, true, false);
+    /*
+    std::cout << "\n[INFO] Parameters AFTER fixParPDF:" << std::endl;
+    for (const auto& par : parIni) {
+      if (auto* var = ws->var(par.first.c_str())) { 
+        std::cout << "  " << par.first << " = " << var->getVal() << " ± " << var->getError() << ", constant = " << (var->isConstant() ? "true" : "false") << std::endl;
+      }
+    */
+    }
     RooFitResult* fitResult_tauzMass = ws->pdf("totPDF_2D")->fitTo(*ws->data("data"), Extended(kTRUE), SumW2Error(true), RooFit::Save());
+    std::cout << "\n[INFO] Parameters AFTER fitting 2D data:" << std::endl;
+    for (const auto& par : parIni) {
+      if (auto* var = ws->var(par.first.c_str())) { 
+        std::cout << "  " << par.first << " = " << var->getVal() << " ± " << var->getError() << ", constant = " << (var->isConstant() ? "true" : "false") << std::endl;
+      }
+    }
+    fitResult_tauzMass->Print("v");
+    std::cout << "status = " << fitResult_tauzMass->status() << std::endl;
+    std::cout << "covQual = " << fitResult_tauzMass->covQual() << std::endl;
   }
 
   TCanvas* can = new TCanvas("can","",800,800);
@@ -272,7 +346,7 @@ map<string, double> SignalExtraction1Fit(map<string, string>& parIni, RooWorkspa
 
   map<string, vector<string>> legendEntries;
   
-  RooPlot* massFrame = ws->var("mass")->frame(Range(massMin, massMax), Bins(nBins));
+  RooPlot* massFrame = ws->var("mass")->frame(Range(massMin, massMax), Bins(nBinsMass));
   RooPlot* tauzFrame = ws->var("tauz")->frame(Range(tauzMin, tauzMax), Bins(nBins));
   RooPlot* tauzResFrame = ws->var("tauz")->frame(Range(tauzMin, tauzMax), Bins(nBins));
   RooPlot* tauzBkgFrame = ws->var("tauz")->frame(Range(tauzMin, tauzMax), Bins(nBins));
@@ -304,7 +378,7 @@ map<string, double> SignalExtraction1Fit(map<string, string>& parIni, RooWorkspa
           if (chi2ndf < 0. || chi2ndf > chi2ndfMax || std::isnan(chi2ndf)) {
             RooRealVar* coeff = ws->var(Form("c%d_mass", i));
             if (coeff) coeff->setConstant(kFALSE);
-            ws->pdf("totPDF_mass")->fitTo(*ws->data("data"),Extended(kTRUE),SumW2Error(true),RooFit::Save());
+            ws->pdf("totPDF_mass")->fitTo(*ws->data("data"), Extended(kTRUE), SumW2Error(true), RooFit::Save());
 
             // avoid drawing on top of each other for every iteration
             RooPlot* tmpFrame = ws->var("mass")->frame();
@@ -337,7 +411,7 @@ map<string, double> SignalExtraction1Fit(map<string, string>& parIni, RooWorkspa
         gr->Draw("APL");
 
       padDist->cd();
-      massFrame = ws->var("mass")->frame(Range(massMin, massMax), Bins(nBins));
+      massFrame = ws->var("mass")->frame(Range(massMin, massMax), Bins(nBinsMass));
       ws->data("data")->plotOn(massFrame, Name("data")); legendEntries["data"] = {"data","P"};
       if (!isMC) { ws->pdf("totPDF_mass")->plotOn(massFrame, Name("background_mass"), Components(RooArgSet(*ws->pdf("bkgPDF_mass"))), DrawOption("F"), FillColor(kGray), LineColor(kGray), VLines()); legendEntries["background_mass"] = {"Background", "F"}; }
       ws->pdf("totPDF_mass")->plotOn(massFrame, Name("signalPsi2s_mass"), Components(RooArgSet(*ws->pdf("psi2sPDF_mass"))), DrawOption("L"), LineColor(kGreen+4)); //legendEntries["signalPsi2s_mass"] = {"#psi(2S) signal","L"};

@@ -72,16 +72,21 @@ std::array<RooDataSet*, 4> createDataset(bool ispO, bool isMC, const char *metho
   Float_t fTauzErr; fChain->SetBranchAddress("fTauzErr", &fTauzErr);
   Int_t fIsAmbig1; fChain->SetBranchAddress("fIsAmbig1", &fIsAmbig1);
   Int_t fIsAmbig2; fChain->SetBranchAddress("fIsAmbig2", &fIsAmbig2);
+  
   Float_t fChi2MatchMCHMFT1; fChain->SetBranchAddress("fChi2MatchMCHMFT1", &fChi2MatchMCHMFT1);
   Float_t fChi2MatchMCHMFT2; fChain->SetBranchAddress("fChi2MatchMCHMFT2", &fChi2MatchMCHMFT2);
   // Do the bottom part only for MC
   auto fMcDecision = static_cast<uint32_t>(0);
   UShort_t fMcMask1;
   UShort_t fMcMask2;
+  Int_t fIsCorrectAssoc1;
+  Int_t fIsCorrectAssoc2;
   if (isMC) {
     fChain->SetBranchAddress("fMcDecision", &fMcDecision);
     fChain->SetBranchAddress("fMcMask1", &fMcMask1);
     fChain->SetBranchAddress("fMcMask2", &fMcMask2);
+    fChain->SetBranchAddress("fIsCorrectAssoc1", &fIsCorrectAssoc1);
+    fChain->SetBranchAddress("fIsCorrectAssoc2", &fIsCorrectAssoc2);
   }
 
   fChain->SetBranchStatus("*", 0);
@@ -103,6 +108,8 @@ std::array<RooDataSet*, 4> createDataset(bool ispO, bool isMC, const char *metho
     fChain->SetBranchStatus("fMcDecision", 1);
     fChain->SetBranchStatus("fMcMask1", 1);
     fChain->SetBranchStatus("fMcMask2", 1);
+    fChain->SetBranchStatus("fIsCorrectAssoc1", 1);
+    fChain->SetBranchStatus("fIsCorrectAssoc2", 1);
   }
 
   RooRealVar* mass = new RooRealVar("mass", "Mass_{#mu^{+}#mu^{-}}", 2.4, 4.0, "GeV/c^{2}");
@@ -132,6 +139,16 @@ std::array<RooDataSet*, 4> createDataset(bool ispO, bool isMC, const char *metho
   TH1D *hMatchesTrueTrue = new TH1D("hMatchesTrueTrue", "True matches mass_{#mu^{+}#mu^{-}}", 100, 2.4, 4.0);
   TH1D *hMatchesTrueFake = new TH1D("hMatchesTrueFake", "True-fake or fake-true mass_{#mu^{+}#mu^{-}}", 100, 2.4, 4.0);
   TH1D *hMatchesFakeFake = new TH1D("hMatchesFakeFake", "Fake-fake mass_{#mu^{+}#mu^{-}}", 100, 2.4, 4.0);
+  TH1D *hMatchesTauzTrueTrue = new TH1D("hMatchesTauzTrueTrue", "True matches #tau_{z}_{#mu^{+}#mu^{-}}", 100, -0.02, 0.02);
+  TH1D *hMatchesTauzTrueFake = new TH1D("hMatchesTauzTrueFake", "True-fake or fake-true #tau_{z}_{#mu^{+}#mu^{-}}", 100, -0.02, 0.02);
+  TH1D *hMatchesTauzFakeFake = new TH1D("hMatchesTauzFakeFake", "Fake-fake #tau_{z}_{#mu^{+}#mu^{-}}", 100, -0.02, 0.02);
+  // Do the same kind of study for the vertex association
+  TH1D *hVertexAssociationTrueTrue = new TH1D("hVertexAssociationTrueTrue", "True vertex association mass_{#mu^{+}#mu^{-}}", 100, 2.4, 4.0);
+  TH1D *hVertexAssociationTrueFake = new TH1D("hVertexAssociationTrueFake", "True-fake or fake-true vertex association mass_{#mu^{+}#mu^{-}}", 100, 2.4, 4.0);
+  TH1D *hVertexAssociationFakeFake = new TH1D("hVertexAssociationFakeFake", "Fake-fake vertex association mass_{#mu^{+}#mu^{-}}", 100, 2.4, 4.0);
+  TH1D *hVertexAssociationTauzTrueTrue = new TH1D("hVertexAssociationTauzTrueTrue", "True vertex association #tau_{z}_{#mu^{+}#mu^{-}}", 100, -0.02, 0.02);
+  TH1D *hVertexAssociationTauzTrueFake = new TH1D("hVertexAssociationTauzTrueFake", "True-fake or fake-true vertex association #tau_{z}_{#mu^{+}#mu^{-}}", 100, -0.02, 0.02);
+  TH1D *hVertexAssociationTauzFakeFake = new TH1D("hVertexAssociationTauzFakeFake", "Fake-fake vertex association #tau_{z}_{#mu^{+}#mu^{-}}", 100, -0.02, 0.02);
 
   int n_entries = fChain->GetEntries();
   for (int nEv = 0; nEv < n_entries; nEv++) {
@@ -153,10 +170,31 @@ std::array<RooDataSet*, 4> createDataset(bool ispO, bool isMC, const char *metho
     // We also plot the MFT-MCH matching distributions
     // McMask == 0 --> true global match
     if (isMC) {
-      if (fMcMask1 == 0 && fMcMask2 == 0) hMatchesTrueTrue->Fill(fMass);
-      if ((fMcMask1 == 0 && fMcMask2 != 0) || (fMcMask1 != 0 && fMcMask2 == 0)) hMatchesTrueFake->Fill(fMass);
-      if (fMcMask1 != 0 && fMcMask2 != 0) hMatchesFakeFake->Fill(fMass);
-      // if (fMcDecision == 0) continue;  
+      if (fMcMask1 == 0 && fMcMask2 == 0) {
+       hMatchesTrueTrue->Fill(fMass);
+       hMatchesTauzTrueTrue->Fill(fTauz);
+      }
+      if (fIsCorrectAssoc1 == 0 && fIsCorrectAssoc2 == 0) {
+       hVertexAssociationTrueTrue->Fill(fMass);
+       hVertexAssociationTauzTrueTrue->Fill(fTauz);
+      }
+      if ((fMcMask1 == 0 && fMcMask2 != 0) || (fMcMask1 != 0 && fMcMask2 == 0)) { 
+        hMatchesTrueFake->Fill(fMass);
+        hMatchesTauzTrueFake->Fill(fTauz);
+      }
+      if ((fIsCorrectAssoc1 == 0 && fIsCorrectAssoc2 != 0) || (fIsCorrectAssoc1 != 0 && fIsCorrectAssoc2 == 0)) { 
+        hVertexAssociationTrueFake->Fill(fMass);
+        hVertexAssociationTauzTrueFake->Fill(fTauz);
+      }
+      if (fMcMask1 != 0 && fMcMask2 != 0) { 
+        hMatchesFakeFake->Fill(fMass);
+        hMatchesTauzFakeFake->Fill(fTauz);
+      }
+      if (fIsCorrectAssoc1 != 0 && fIsCorrectAssoc2 != 0) { 
+        hVertexAssociationFakeFake->Fill(fMass);
+        hVertexAssociationTauzFakeFake->Fill(fTauz);
+      }
+      if (fMcDecision == 0 || fMcDecision == 4) continue;  
     }
 
     pt->setVal(fPt);
@@ -187,14 +225,98 @@ std::array<RooDataSet*, 4> createDataset(bool ispO, bool isMC, const char *metho
     TCanvas *cMatches = new TCanvas("cMatches", "MFT-MCH matches mass");
     cMatches->cd();
     gPad->SetLogy();
+    hMatchesTrueTrue->SetTitle("");
+    hMatchesTrueTrue->SetStats(0);
     hMatchesTrueTrue->GetYaxis()->SetRangeUser(1e0, 1e6);
+    hMatchesTrueTrue->GetYaxis()->SetTitle("entries");
+    hMatchesTrueTrue->GetXaxis()->SetTitle("mass [GeV/c^{2}]");
     hMatchesTrueTrue->SetLineColor(kRed);
-    hMatchesTrueFake->SetLineColor(kGreen);
+    hMatchesTrueFake->SetLineColor(kGreen+1);
     hMatchesFakeFake->SetLineColor(kBlue);
     hMatchesTrueTrue->Draw("hist");
     hMatchesTrueFake->Draw("same hist");
     hMatchesFakeFake->Draw("same hist");
+    TLegend *legend = new TLegend(0.60, 0.72, 0.88, 0.88);
+    legend->SetBorderSize(0);
+    legend->SetFillStyle(0);
+    legend->SetTextSize(0.035);
+    legend->AddEntry(hMatchesTrueTrue, "true  - true", "l");
+    legend->AddEntry(hMatchesTrueFake, "true - fake", "l");
+    legend->AddEntry(hMatchesFakeFake, "fake - fake", "l");
+    legend->Draw();
     cMatches->SaveAs("output/mass_distribution_MFT_MCH_matches.pdf");
+
+    TCanvas *cMatchesTauz = new TCanvas("cMatchesTauz", "MFT-MCH matches tauz");
+    cMatchesTauz->cd();
+    gPad->SetLogy();
+    hMatchesTauzTrueTrue->SetTitle("");
+    hMatchesTauzTrueTrue->SetStats(0);
+    hMatchesTauzTrueTrue->GetYaxis()->SetRangeUser(1e0, 1e6);
+    hMatchesTauzTrueTrue->GetYaxis()->SetTitle("entries");
+    hMatchesTauzTrueTrue->GetXaxis()->SetTitle("tauz [ns]");
+    hMatchesTauzTrueTrue->SetLineColor(kRed);
+    hMatchesTauzTrueFake->SetLineColor(kGreen+1);
+    hMatchesTauzFakeFake->SetLineColor(kBlue);
+    hMatchesTauzTrueTrue->Draw("hist");
+    hMatchesTauzTrueFake->Draw("same hist");
+    hMatchesTauzFakeFake->Draw("same hist");
+    legend = new TLegend(0.60, 0.72, 0.88, 0.88);
+    legend->SetBorderSize(0);
+    legend->SetFillStyle(0);
+    legend->SetTextSize(0.035);
+    legend->AddEntry(hMatchesTrueTrue, "true  - true", "l");
+    legend->AddEntry(hMatchesTrueFake, "true - fake", "l");
+    legend->AddEntry(hMatchesFakeFake, "fake - fake", "l");
+    legend->Draw();
+    cMatchesTauz->SaveAs("output/tauz_distribution_MFT_MCH_matches.pdf");
+
+    TCanvas *cVertexAssociation = new TCanvas("cVertexAssoc", "MFT-MCH vertex association mass");
+    cVertexAssociation->cd();
+    gPad->SetLogy();
+    hVertexAssociationTrueTrue->SetTitle("");
+    hVertexAssociationTrueTrue->SetStats(0);
+    hVertexAssociationTrueTrue->GetYaxis()->SetRangeUser(1e0, 1e6);
+    hVertexAssociationTrueTrue->GetYaxis()->SetTitle("entries");
+    hVertexAssociationTrueTrue->GetXaxis()->SetTitle("mass [GeV/c^{2}]");
+    hVertexAssociationTrueTrue->SetLineColor(kRed);
+    hVertexAssociationTrueFake->SetLineColor(kGreen+1);
+    hVertexAssociationFakeFake->SetLineColor(kBlue);
+    hVertexAssociationTrueTrue->Draw("hist");
+    hVertexAssociationTrueFake->Draw("same hist");
+    hVertexAssociationFakeFake->Draw("same hist");
+    legend = new TLegend(0.60, 0.72, 0.88, 0.88);
+    legend->SetBorderSize(0);
+    legend->SetFillStyle(0);
+    legend->SetTextSize(0.035);
+    legend->AddEntry(hVertexAssociationTrueTrue, "true  - true", "l");
+    legend->AddEntry(hVertexAssociationTrueFake, "true - fake", "l");
+    legend->AddEntry(hVertexAssociationFakeFake, "fake - fake", "l");
+    legend->Draw();
+    cVertexAssociation->SaveAs("output/mass_distribution_MFT_MCH_vertexAssoc.pdf");
+
+    TCanvas *cVertexAssociationTauz = new TCanvas("cVertexAssocTauz", "MFT-MCH vertex association tauz");
+    cVertexAssociationTauz->cd();
+    gPad->SetLogy();
+    hVertexAssociationTauzTrueTrue->SetTitle("");
+    hVertexAssociationTauzTrueTrue->SetStats(0);
+    hVertexAssociationTauzTrueTrue->GetYaxis()->SetRangeUser(1e0, 1e6);
+    hVertexAssociationTauzTrueTrue->GetYaxis()->SetTitle("entries");
+    hVertexAssociationTauzTrueTrue->GetXaxis()->SetTitle("tauz [ns]");
+    hVertexAssociationTauzTrueTrue->SetLineColor(kRed);
+    hVertexAssociationTauzTrueFake->SetLineColor(kGreen+1);
+    hVertexAssociationTauzFakeFake->SetLineColor(kBlue);
+    hVertexAssociationTauzTrueTrue->Draw("hist");
+    hVertexAssociationTauzTrueFake->Draw("same hist");
+    hVertexAssociationTauzFakeFake->Draw("same hist");
+    legend = new TLegend(0.60, 0.72, 0.88, 0.88);
+    legend->SetBorderSize(0);
+    legend->SetFillStyle(0);
+    legend->SetTextSize(0.035);
+    legend->AddEntry(hVertexAssociationTrueTrue, "true  - true", "l");
+    legend->AddEntry(hVertexAssociationTrueFake, "true - fake", "l");
+    legend->AddEntry(hVertexAssociationFakeFake, "fake - fake", "l");
+    legend->Draw();
+    cVertexAssociationTauz->SaveAs("output/tauz_distribution_MFT_MCH_vertexAssoc.pdf");
   }
 
   return {data, dataPeak, dataSidebandLow, dataSidebandHigh};
@@ -398,6 +520,7 @@ bool setParameters(map<string, string> row, struct KinCuts& cut, map<string, str
     }
     else {
       if (col->second != "") {
+  cout << "[DEBUG] " << label << " = '" << col->second << "'" << endl;
 	string value = col->second;
 	// check that initial parameters format is correct: [ num, num, num ]
 	if ((value.find("[")==std::string::npos)||(value.find("]")==std::string::npos)) {
