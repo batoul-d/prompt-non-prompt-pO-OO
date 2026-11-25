@@ -1,3 +1,4 @@
+
 #include <iostream>
 #include <fstream>
 #include <sstream>
@@ -33,13 +34,6 @@ bool plotMC   = false;
 
 bool skipIntegratedBin = true;
 
-const char* file_pO_data = "output/fitSummary_pO_fineBins_copy.tsv";
-const char* file_pO_MC   = "output/fitSummary_pO_MC_fineBins_copy.tsv";
-
-const char* file_OO_data = "output/fitSummary_OO_fineBins_VWG_4Gaussians.tsv";
-const char* file_OO_MC   = "output/fitSummary_OO_MC_fineBins_VWG_4Gaussians.tsv"; // only signal
-// const char* file_OO_MC   = "output/fitSummary_OO_fineBins_VWG_4Gaussians_MC.tsv"; // including background
-
 const char* outputDir = "plots";
 
 // ============================================================
@@ -59,10 +53,10 @@ struct Observable {
 vector<Observable> GetObservables(bool isOO)
 {
     vector<Observable> obs = {
-        {"fit chi2 (last performed)",  "Fir #chi^{2}", "chi2", kBlack, 0, 100, false},
-        {"fit chi2 (last performed)",  "Fir #chi^{2} zoomed", "chi2zoom", kBlack, 0, 10, false},
+        {"fit chi2 (last performed)", "Fir #chi^{2}", "chi2", kBlack, 0, 100, false},
+        {"fit chi2 (last performed)", "Fir #chi^{2} zoomed", "chi2zoom", kBlack, 0, 10, false},
 
-        {"mean_tauzRes (ns)",  "Mean #tau_{z} resolution", "mean", kBlack, -0.00001, 0.00001, false},
+        {"mean_tauzRes (ns)", "Mean #tau_{z} resolution", "mean", kBlack, -0.00001, 0.00001, false},
 
         {"sigma0_tauzRes (ns)", "#sigma_{0}", "sigma", kRed+1, 0.0001, 1.0, true},
         {"sigma1_tauzRes (ns)", "#sigma_{1}", "sigma", kBlue+1, 0.0001, 1.0, true},
@@ -107,7 +101,8 @@ struct Table {
 // Example: 0.002 (7.9892e-08)
 // ============================================================
 
-bool ParseValue(string input, double& value, double& error) {
+bool ParseValue(string input, double& value, double& error)
+{
     size_t pos = input.find('(');
 
     string valStr = input.substr(0, pos);
@@ -139,7 +134,8 @@ bool ParseValue(string input, double& value, double& error) {
 // READ TSV
 // ============================================================
 
-Table ReadTable(const char* filename, const vector<Observable>& observables) {
+Table ReadTable(const char* filename, const vector<Observable>& observables)
+{
     Table table;
 
     ifstream file(filename);
@@ -151,7 +147,6 @@ Table ReadTable(const char* filename, const vector<Observable>& observables) {
 
     string line;
 
-    // Read header
     if (!getline(file, line))
         return table;
 
@@ -162,13 +157,11 @@ Table ReadTable(const char* filename, const vector<Observable>& observables) {
     while (getline(headerStream, field, '\t'))
         headers.push_back(field);
 
-    // Find relevant columns
     map<string, int> columns;
 
     for (int i = 0; i < (int)headers.size(); ++i) {
         string h = headers[i];
 
-        // Remove potential carriage return
         if (!h.empty() && h.back() == '\r')
             h.pop_back();
 
@@ -188,7 +181,6 @@ Table ReadTable(const char* filename, const vector<Observable>& observables) {
         }
     }
 
-    // Read rows
     while (getline(file, line)) {
 
         if (line.empty())
@@ -203,7 +195,6 @@ Table ReadTable(const char* filename, const vector<Observable>& observables) {
         if (fields.size() < headers.size())
             continue;
 
-        // Parse pT interval: [0,1], [2,4], etc.
         double low, high;
 
         string bin = fields[columns["pT_bin (GeV/c)"]];
@@ -241,8 +232,7 @@ Table ReadTable(const char* filename, const vector<Observable>& observables) {
 
             double value, error;
 
-            if (!ParseValue(fields[columns[obs.name]],
-                            value, error))
+            if (!ParseValue(fields[columns[obs.name]], value, error))
                 continue;
 
             table.values[obs.name].push_back(
@@ -250,6 +240,7 @@ Table ReadTable(const char* filename, const vector<Observable>& observables) {
             );
         }
     }
+
     return table;
 }
 
@@ -264,8 +255,8 @@ void DrawGroup(
     const Table& mc,
     bool hasData,
     bool hasMC,
-    const string& system) {
-
+    const string& system)
+{
     TCanvas* canvas = new TCanvas(
         Form("c_%s_%s", system.c_str(), group.c_str()),
         Form("%s - %s", system.c_str(), group.c_str()),
@@ -347,7 +338,6 @@ void DrawGroup(
     }
 
     mg->SetTitle("");
-
     mg->Draw("A");
 
     mg->SetTitle(Form("%s", system.c_str()));
@@ -368,11 +358,11 @@ void DrawGroup(
     canvas->SetLeftMargin(0.13);
     canvas->SetBottomMargin(0.12);
 
-    // Find settings for the current group
     for (const auto& obs : observables) {
         if (obs.group == group) {
             mg->GetYaxis()->SetRangeUser(obs.Ymin, obs.Ymax);
-            if (obs.logY) canvas->SetLogy();
+            if (obs.logY)
+                canvas->SetLogy();
             break;
         }
     }
@@ -392,15 +382,50 @@ void DrawGroup(
 // MAIN
 // ============================================================
 
-void compareDataAndMCfitParams()
+void compareDataAndMCfitParams(
+    const char* caseName_pO_data,
+    const char* caseName_pO_MC,
+    const char* caseName_OO_data,
+    const char* caseName_OO_MC)
 {
     gStyle->SetOptStat(0);
 
-    // gSystem->mkdir(outputDir, true);
+    // ========================================================
+    // CONSTRUCT INPUT FILENAMES FROM ARGUMENTS
+    // ========================================================
+
+    TString file_pO_data = Form(
+        "output/fitSummary_pO_%s.tsv",
+        caseName_pO_data
+    );
+
+    TString file_pO_MC = Form(
+        "output/fitSummary_pO_MC_%s.tsv",
+        caseName_pO_MC
+    );
+
+    TString file_OO_data = Form(
+        "output/fitSummary_OO_%s.tsv",
+        caseName_OO_data
+    );
+
+    TString file_OO_MC = Form(
+        "output/fitSummary_OO_MC_%s.tsv",
+        caseName_OO_MC
+    );
+
+    cout << "\n[INFO] Input files:" << endl;
+    cout << "pO data: " << file_pO_data << endl;
+    cout << "pO MC:   " << file_pO_MC << endl;
+    cout << "OO data: " << file_OO_data << endl;
+    cout << "OO MC:   " << file_OO_MC << endl;
+
+    // ========================================================
+    // VALIDATION
+    // ========================================================
 
     if (!use_pO && !use_OO) {
-        cout << "[ERROR] Select at least one collision system."
-             << endl;
+        cout << "[ERROR] Select at least one collision system." << endl;
         return;
     }
 
@@ -408,6 +433,8 @@ void compareDataAndMCfitParams()
         cout << "[ERROR] Select data and/or MC." << endl;
         return;
     }
+
+    gSystem->mkdir(outputDir, true);
 
     vector<string> groups = {
         "chi2", "chi2zoom", "mean", "sigma", "fraction"
@@ -424,14 +451,16 @@ void compareDataAndMCfitParams()
         Table data, mc;
 
         if (plotData)
-            data = ReadTable(file_pO_data, observables);
+            data = ReadTable(file_pO_data.Data(), observables);
 
         if (plotMC)
-            mc = ReadTable(file_pO_MC, observables);
+            mc = ReadTable(file_pO_MC.Data(), observables);
 
         for (const auto& group : groups) {
-            DrawGroup(group, observables, data, mc,
-                      plotData, plotMC, "pO");
+            DrawGroup(
+                group, observables, data, mc,
+                plotData, plotMC, "pO"
+            );
         }
     }
 
@@ -446,15 +475,18 @@ void compareDataAndMCfitParams()
         Table data, mc;
 
         if (plotData)
-            data = ReadTable(file_OO_data, observables);
+            data = ReadTable(file_OO_data.Data(), observables);
 
         if (plotMC)
-            mc = ReadTable(file_OO_MC, observables);
+            mc = ReadTable(file_OO_MC.Data(), observables);
 
         for (const auto& group : groups) {
-            DrawGroup(group, observables, data, mc,
-                      plotData, plotMC, "OO");
+            DrawGroup(
+                group, observables, data, mc,
+                plotData, plotMC, "OO"
+            );
         }
     }
-    cout << "[INFO] Plots saved in " << outputDir << endl;
+
+    cout << "\n[INFO] Plots saved in " << outputDir << endl;
 }

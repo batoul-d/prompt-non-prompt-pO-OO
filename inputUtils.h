@@ -76,13 +76,12 @@ std::array<RooDataSet*, 4> createDataset(bool ispO, bool isMC, const char *metho
   Float_t fChi2MatchMCHMFT1; fChain->SetBranchAddress("fChi2MatchMCHMFT1", &fChi2MatchMCHMFT1);
   Float_t fChi2MatchMCHMFT2; fChain->SetBranchAddress("fChi2MatchMCHMFT2", &fChi2MatchMCHMFT2);
   // Do the bottom part only for MC
-  auto fMcDecision = static_cast<uint32_t>(0);
+  auto fMcDecision = static_cast<uint32_t>(0); fChain->SetBranchAddress("fMcDecision", &fMcDecision);
   UShort_t fMcMask1;
   UShort_t fMcMask2;
   Int_t fIsCorrectAssoc1;
   Int_t fIsCorrectAssoc2;
   if (isMC) {
-    fChain->SetBranchAddress("fMcDecision", &fMcDecision);
     fChain->SetBranchAddress("fMcMask1", &fMcMask1);
     fChain->SetBranchAddress("fMcMask2", &fMcMask2);
     fChain->SetBranchAddress("fIsCorrectAssoc1", &fIsCorrectAssoc1);
@@ -104,8 +103,8 @@ std::array<RooDataSet*, 4> createDataset(bool ispO, bool isMC, const char *metho
   fChain->SetBranchStatus("fIsAmbig2", 1);
   fChain->SetBranchStatus("fChi2MatchMCHMFT1", 1);
   fChain->SetBranchStatus("fChi2MatchMCHMFT2", 1);
+  fChain->SetBranchStatus("fMcDecision", 1);
   if (isMC) {
-    fChain->SetBranchStatus("fMcDecision", 1);
     fChain->SetBranchStatus("fMcMask1", 1);
     fChain->SetBranchStatus("fMcMask2", 1);
     fChain->SetBranchStatus("fIsCorrectAssoc1", 1);
@@ -164,25 +163,28 @@ std::array<RooDataSet*, 4> createDataset(bool ispO, bool isMC, const char *metho
     if (fChi2MatchMCHMFT1 > 500 || fChi2MatchMCHMFT2 > 500) continue;
     if (fIsAmbig1 || fIsAmbig2) continue;
 
+    // To do MC fit withs Jpsi and simulated background, better to remove the artificially big psi(2S) contribution
+    // if (fMcDecision == 3 || fMcDecision == 4) continue;
+
     // For MC we select only the MC truth signal
-    // 4 --> Jpsi + psi2S
-    // 5 --> Only Jpsi
+    // in pO: 5 = J/psi + psi(2S)
+    // in OO: 3 = , 4 = 
     // We also plot the MFT-MCH matching distributions
     // McMask == 0 --> true global match
     if (isMC) {
       if (fMcMask1 == 0 && fMcMask2 == 0) {
-       hMatchesTrueTrue->Fill(fMass);
-       hMatchesTauzTrueTrue->Fill(fTauz);
+        hMatchesTrueTrue->Fill(fMass);
+        hMatchesTauzTrueTrue->Fill(fTauz);
       }
-      if (fIsCorrectAssoc1 == 0 && fIsCorrectAssoc2 == 0) {
-       hVertexAssociationTrueTrue->Fill(fMass);
-       hVertexAssociationTauzTrueTrue->Fill(fTauz);
+      if (fIsCorrectAssoc1 == 1 && fIsCorrectAssoc2 == 1) {
+        hVertexAssociationTrueTrue->Fill(fMass);
+        hVertexAssociationTauzTrueTrue->Fill(fTauz);
       }
       if ((fMcMask1 == 0 && fMcMask2 != 0) || (fMcMask1 != 0 && fMcMask2 == 0)) { 
         hMatchesTrueFake->Fill(fMass);
         hMatchesTauzTrueFake->Fill(fTauz);
       }
-      if ((fIsCorrectAssoc1 == 0 && fIsCorrectAssoc2 != 0) || (fIsCorrectAssoc1 != 0 && fIsCorrectAssoc2 == 0)) { 
+      if ((fIsCorrectAssoc1 == 1 && fIsCorrectAssoc2 != 0) || (fIsCorrectAssoc1 != 0 && fIsCorrectAssoc2 == 1)) { 
         hVertexAssociationTrueFake->Fill(fMass);
         hVertexAssociationTauzTrueFake->Fill(fTauz);
       }
@@ -190,11 +192,11 @@ std::array<RooDataSet*, 4> createDataset(bool ispO, bool isMC, const char *metho
         hMatchesFakeFake->Fill(fMass);
         hMatchesTauzFakeFake->Fill(fTauz);
       }
-      if (fIsCorrectAssoc1 != 0 && fIsCorrectAssoc2 != 0) { 
+      if (fIsCorrectAssoc1 == 0 && fIsCorrectAssoc2 == 0) { 
         hVertexAssociationFakeFake->Fill(fMass);
         hVertexAssociationTauzFakeFake->Fill(fTauz);
       }
-      if (fMcDecision == 0 || fMcDecision == 4) continue;  
+      if (fMcDecision == 0) continue; // necessary to put 4 (for pO) or 3/4 (for OO) here?
     }
 
     pt->setVal(fPt);
