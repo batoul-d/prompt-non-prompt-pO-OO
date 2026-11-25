@@ -180,7 +180,7 @@ TLatex *varLatex (RooWorkspace *ws, map<string, string> parIni, double chi2ndf, 
     // TODO: sometimes it might be useful to display them... comment this line below
     if (it->first.rfind("free_", 0) == 0) continue;
     if (it->first.find("fit")!=std::string::npos || it->first.find("model")!=std::string::npos) continue;
-    if (ws->var(it->first.c_str())->isConstant()) continue;
+    // if (ws->var(it->first.c_str())->isConstant()) continue;
     if (fitMass && fitTauz) {
       if (!(it->first.find("_tauzMass")!=std::string::npos || it->first.find("_tauzSig")!=std::string::npos)) // include the lambda for the tauz nonprompt
 	continue;
@@ -200,7 +200,7 @@ TLatex *varLatex (RooWorkspace *ws, map<string, string> parIni, double chi2ndf, 
       else if (!(it->first.find("_tauzSig")!=std::string::npos)) continue; 
     }
     if (it->first.find("si2s")!=std::string::npos) continue;
-    if (ws->var(it->first.c_str())->getError()==0 && it->first != "xMaxRes") continue;
+    // if (ws->var(it->first.c_str())->getError()==0 && it->first != "xMaxRes" && it->first != "mean_tauzRes") continue;
     cout << "[INFO] writing variable " << it->first.c_str() << " = ";
     cout << ws->var(it->first.c_str())->getValV();
     cout << " err = "<<ws->var(it->first.c_str())->getError() << endl;

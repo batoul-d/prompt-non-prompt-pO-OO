@@ -3,22 +3,39 @@ from pathlib import Path
 import base64
 import html
 import pandas as pd
+import sys
 
 # ============================================================
-# CONFIGURATION: change these paths
+# CONFIGURATION
 # ============================================================
 
-PO_PLOTS = Path("output/outputFits_pO_fineBins_copy")
-OO_PLOTS = Path("output/outputFits_OO_fineBins_VWG_4Gaussians")
+if len(sys.argv) < 3:
+    print("Usage: python makeReport.py PO_CASE_NAME OO_CASE_NAME [DRAW_DIAGNOSTICS]")
+    sys.exit(1)
+
+PO_CASE_NAME = sys.argv[1]
+OO_CASE_NAME = sys.argv[2]
+
+# Optional third argument: true/false
+DRAW_DIAGNOSTICS = (
+    len(sys.argv) > 3
+    and sys.argv[3].lower() in ("true", "1", "yes", "y")
+)
+
+PO_PLOTS = Path(f"output/outputFits_pO_{PO_CASE_NAME}")
+OO_PLOTS = Path(f"output/outputFits_OO_{OO_CASE_NAME}")
 
 SUMMARY_PLOTS = Path("plots")
 
-PO_TABLE = Path("output/fitSummary_pO_fineBins_copy.tsv")
-OO_TABLE = Path("output/fitSummary_OO_fineBins_VWG_4Gaussians.tsv")
+PO_TABLE = Path(f"output/fitSummary_pO_{PO_CASE_NAME}.tsv")
+OO_TABLE = Path(f"output/fitSummary_OO_{OO_CASE_NAME}.tsv")
 
 OUTPUT = Path("plots/comparison_report.html")
 
 PLOT_WIDTH = 420
+
+# Prefixes for NLL and sWeight plots
+DIAGNOSTIC_PREFIXES = ("c0NLL", "cNLL", "cWeights")
 
 print("PO directory:", PO_PLOTS.resolve())
 print("PO exists:", PO_PLOTS.exists())
@@ -28,38 +45,68 @@ print("OO directory:", OO_PLOTS.resolve())
 print("OO exists:", OO_PLOTS.exists())
 print("OO is directory:", OO_PLOTS.is_dir())
 
-print("PO contents:", list(PO_PLOTS.iterdir())[:10])
-print("OO contents:", list(OO_PLOTS.iterdir())[:10])
+print("Draw NLL and sWeight plots:", DRAW_DIAGNOSTICS)
+
+if PO_PLOTS.exists():
+    print("PO contents:", list(PO_PLOTS.iterdir())[:10])
+
+if OO_PLOTS.exists():
+    print("OO contents:", list(OO_PLOTS.iterdir())[:10])
+
 
 # ============================================================
 # HELPERS
 # ============================================================
 
-def load_plots(directory):
-    """Load and sort PDF files, excluding [0,20] GeV/c^2 bin."""
-    return sorted(
-        p for p in directory.rglob("*")
-        if p.is_file()
-        and p.suffix.lower() in (".pdf")
-        and "0_200" not in p.name
-    )
+def load_plots(directory, diagnostics=False):
+    """
+    Load and sort PDF files.
+
+    diagnostics=False:
+        Normal fit plots, excluding NLL and sWeights.
+
+    diagnostics=True:
+        Only NLL and sWeight plots.
+
+    Both exclude the integrated [0,20] bin.
+    """
+
+    if not directory.is_dir():
+        print(f"[WARNING] Plot directory does not exist: {directory}")
+        return []
+
+    plots = []
+
+    for p in directory.rglob("*"):
+        if not p.is_file() or p.suffix.lower() != ".pdf":
+            continue
+
+        if "0_200" in p.name:
+            continue
+
+        is_diagnostic = p.stem.startswith(DIAGNOSTIC_PREFIXES)
+
+        if diagnostics and is_diagnostic:
+            plots.append(p)
+        elif not diagnostics and not is_diagnostic:
+            plots.append(p)
+
+    return sorted(plots)
 
 
 def image_to_html(path):
     """Embed PDF files directly into the HTML."""
 
     filename = html.escape(path.stem)
+    encoded = base64.b64encode(path.read_bytes()).decode("ascii")
 
-    if path.suffix.lower() == ".pdf":
-        encoded = base64.b64encode(path.read_bytes()).decode("ascii")
-
-        content = f"""
+    content = f"""
         <iframe
             src="data:application/pdf;base64,{encoded}"
             width="100%"
             height="500px">
         </iframe>
-        """
+    """
 
     return f"""
     <div class="plot">
@@ -69,41 +116,54 @@ def image_to_html(path):
     """
 
 
-def plots_to_html(directory):
-    plots = load_plots(directory)
+def plots_to_html(directory, diagnostics=False):
+    plots = load_plots(directory, diagnostics)
 
     if not plots:
-        return "<p>No PNG files found.</p>"
+        return "<p>No PDF files found.</p>"
 
     return "\n".join(image_to_html(p) for p in plots)
 
 
 def table_to_html(path):
+    if not path.is_file():
+        print(f"[WARNING] Table does not exist: {path}")
+        return f"<p>Table not found: {html.escape(str(path))}</p>"
+
     df = pd.read_csv(path, sep="\t")
     return df.to_html(index=False, border=0, classes="data-table")
 
 
 def summary_plots_to_html(directory, prefix):
+    if not directory.is_dir():
+        return "<p>Summary plot directory not found.</p>"
+
     plots = sorted(
         p for p in directory.rglob("*")
         if p.is_file()
-        and p.suffix.lower() in (".pdf")
+        and p.suffix.lower() == ".pdf"
         and p.stem.startswith(prefix + "_")
         and "0_200" not in p.name
     )
 
     if not plots:
-        return "<p>No plots found.</p>"
+        return "<p>No summary plots found.</p>"
 
     return "\n".join(image_to_html(p) for p in plots)
+
 
 # ============================================================
 # BUILD REPORT
 # ============================================================
 
-# Fit plots
-po_plots_html = plots_to_html(PO_PLOTS)
-oo_plots_html = plots_to_html(OO_PLOTS)
+# Normal fit plots
+po_plots_html = plots_to_html(PO_PLOTS, diagnostics=False)
+oo_plots_html = plots_to_html(OO_PLOTS, diagnostics=False)
+
+# NLL and sWeight plots (only if enabled)
+if DRAW_DIAGNOSTICS:
+    po_diagnostics_html = plots_to_html(PO_PLOTS, diagnostics=True)
+    oo_diagnostics_html = plots_to_html(OO_PLOTS, diagnostics=True)
 
 # Summary plots
 po_summary_html = summary_plots_to_html(SUMMARY_PLOTS, "pO")
@@ -113,6 +173,32 @@ oo_summary_html = summary_plots_to_html(SUMMARY_PLOTS, "OO")
 po_table_html = table_to_html(PO_TABLE)
 oo_table_html = table_to_html(OO_TABLE)
 
+
+# ============================================================
+# OPTIONAL DIAGNOSTICS SECTION
+# ============================================================
+
+diagnostics_section = ""
+
+if DRAW_DIAGNOSTICS:
+    diagnostics_section = f"""
+    <h2>NLL and sWeight plots</h2>
+
+    <h3>pO NLL and sWeights — {html.escape(PO_CASE_NAME)}</h3>
+    <div class="plot-row">
+    {po_diagnostics_html}
+    </div>
+
+    <h3>OO NLL and sWeights — {html.escape(OO_CASE_NAME)}</h3>
+    <div class="plot-row">
+    {oo_diagnostics_html}
+    </div>
+    """
+
+
+# ============================================================
+# HTML REPORT
+# ============================================================
 
 report = f"""
 <!DOCTYPE html>
@@ -154,12 +240,6 @@ h3 {{
 .plot {{
     flex: 0 0 {PLOT_WIDTH}px;
     text-align: center;
-}}
-
-.plot img {{
-    width: 100%;
-    height: auto;
-    object-fit: contain;
 }}
 
 .plot iframe {{
@@ -222,16 +302,17 @@ h3 {{
 
 <h2>Fit plots</h2>
 
-<h3>pO fits</h3>
+<h3>pO fits — {html.escape(PO_CASE_NAME)}</h3>
 <div class="plot-row">
 {po_plots_html}
 </div>
 
-<h3>OO fits</h3>
+<h3>OO fits — {html.escape(OO_CASE_NAME)}</h3>
 <div class="plot-row">
 {oo_plots_html}
 </div>
 
+{diagnostics_section}
 
 <h2>Summary plots</h2>
 
@@ -244,7 +325,6 @@ h3 {{
 <div class="plot-row">
 {oo_summary_html}
 </div>
-
 
 <h2>Numerical results</h2>
 
@@ -266,10 +346,21 @@ h3 {{
 </html>
 """
 
+# ============================================================
+# SAVE REPORT
+# ============================================================
+
+OUTPUT.parent.mkdir(parents=True, exist_ok=True)
 OUTPUT.write_text(report, encoding="utf-8")
 
-print(f"Report created: {OUTPUT.resolve()}")
-print(f"pO fits: {len(load_plots(PO_PLOTS))}")
-print(f"OO fits: {len(load_plots(OO_PLOTS))}")
+print(f"\nReport created: {OUTPUT.resolve()}")
+
+print(f"pO normal fits: {len(load_plots(PO_PLOTS, diagnostics=False))}")
+print(f"OO normal fits: {len(load_plots(OO_PLOTS, diagnostics=False))}")
+
+if DRAW_DIAGNOSTICS:
+    print(f"pO NLL and sWeights: {len(load_plots(PO_PLOTS, diagnostics=True))}")
+    print(f"OO NLL and sWeights: {len(load_plots(OO_PLOTS, diagnostics=True))}")
+
 print(f"pO summary: {len(list(SUMMARY_PLOTS.glob('pO_*.pdf')))}")
 print(f"OO summary: {len(list(SUMMARY_PLOTS.glob('OO_*.pdf')))}")

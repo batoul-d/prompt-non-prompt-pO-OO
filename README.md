@@ -40,7 +40,7 @@ root -l -b -q 'InputToResults.C+(ispO, isMC, caseName, methodName, remakeDS, fit
 | `fit2D`       | `bool`   | Perform 2D mass–τ<sub>z</sub> fit                                       |
 | `plotResults` | `bool`   | Produce and save summary plots                                          |
 
-where `methodName` currently has two options: `sPlot` and `sideBands`.
+where `methodName` currently has two options: `sPlot`, `sPlot_binned` and `sideBands`.
 
 This script orchestrates:
 

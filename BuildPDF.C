@@ -1,4 +1,4 @@
-// Author: Batoul Diab
+// Author: Batoul Diab, Paul Veen
 #include <vector>
 #include <stdio.h>
 #include <iostream>
@@ -67,7 +67,6 @@ void BuildPDF(RooWorkspace* ws, map<string, string>& parIni, bool isMC, bool fit
     ws->import(*var);
   }
   
-
   if (fitMass) buildPDF_mass(ws, parIni, isMC);
   if (fitTauz) {
     buildPDF_tauzRes(ws, parIni);
@@ -77,34 +76,33 @@ void BuildPDF(RooWorkspace* ws, map<string, string>& parIni, bool isMC, bool fit
   }
   if (fitMass && fitTauz) {
     buildPDF_2D(ws, isMC);
-    
   }
 }
 
 void buildPDF_mass(RooWorkspace* ws, map<string, string> parIni, bool isMC){
     ws->factory("expr::mean_psi2s('mean_mass + 0.589188', mean_mass)"); // 0.589188 is the m_psi2 - m_jpsi according to PDG
    
-  if (parIni["modelBkg_mass"]=="Uniform") {
+  if (parIni["modelBkg_mass"] == "Uniform") {
     ws->factory("Uniform::bkgUni_mass(mass)");
     ws->factory("RooExtendPdf::bkgPDF_mass(bkgUni_mass, fBkg_mass)");
   }
-  else if (parIni["modelBkg_mass"]=="ChevPol1") {
+  else if (parIni["modelBkg_mass"] == "ChevPol1") {
     ws->factory("RooChebychev::bkgChev_mass(mass, {c0_mass, c1_mass})");
     ws->factory("RooExtendPdf::bkgPDF_mass(bkgChev_mass, fBkg_mass)");
   }
-  else if (parIni["modelBkg_mass"]=="ChevPol2") {
+  else if (parIni["modelBkg_mass"] == "ChevPol2") {
     ws->factory("RooChebychev::bkgChev_mass(mass, {c0_mass, c1_mass, c2_mass})");
     ws->factory("RooExtendPdf::bkgPDF_mass(bkgChev_mass, fBkg_mass)");
   }
-  else if (parIni["modelBkg_mass"]=="ChevPol3") {
+  else if (parIni["modelBkg_mass"] == "ChevPol3") {
     ws->factory("RooChebychev::bkgChev_mass(mass, {c0_mass, c1_mass, c2_mass, c3_mass})");
     ws->factory("RooExtendPdf::bkgPDF_mass(bkgChev_mass, fBkg_mass)");
   }
-  else if (parIni["modelBkg_mass"]=="ChevPol4") {
+  else if (parIni["modelBkg_mass"] == "ChevPol4") {
     ws->factory("RooChebychev::bkgChev_mass(mass, {c0_mass, c1_mass, c2_mass, c3_mass, c4_mass})");
     ws->factory("RooExtendPdf::bkgPDF_mass(bkgChev_mass, fBkg_mass)");
   }
-  else if (parIni["modelBkg_mass"]=="ChevVarPol3") { // 'var' means we can use it for iterative fitting (parameters constant)
+  else if (parIni["modelBkg_mass"] == "ChevVarPol3") { // 'var' means we can use it for iterative fitting (parameters constant)
     ws->Print();
     ws->factory("RooChebychev::bkgChev_mass(mass, {c0_mass, c1_mass, c2_mass, c3_mass})");
     ws->factory("RooExtendPdf::bkgPDF_mass(bkgChev_mass, fBkg_mass)");
@@ -115,7 +113,7 @@ void buildPDF_mass(RooWorkspace* ws, map<string, string> parIni, bool isMC){
     }
     ws->Print();
   }
-  else if (parIni["modelBkg_mass"]=="ChevVarPol6") { // 'var' means we can use it for iterative fitting (parameters constant)
+  else if (parIni["modelBkg_mass"] == "ChevVarPol6") { // 'var' means we can use it for iterative fitting (parameters constant)
     ws->Print();
     ws->factory("RooChebychev::bkgChev_mass(mass, {c0_mass, c1_mass, c2_mass, c3_mass, c4_mass, c5_mass, c6_mass})");
     ws->factory("RooExtendPdf::bkgPDF_mass(bkgChev_mass, fBkg_mass)");
@@ -126,18 +124,18 @@ void buildPDF_mass(RooWorkspace* ws, map<string, string> parIni, bool isMC){
     }
     ws->Print();
   }
-  else if (parIni["modelBkg_mass"]=="VWG") {
+  else if (parIni["modelBkg_mass"] == "VWG") {
     ws->factory("VWGPdf::bkgVWG_mass(mass, A_mass, B_mass, C_mass)");
     ws->factory("RooExtendPdf::bkgPDF_mass(bkgVWG_mass, fBkg_mass)");
   }
 
-  if (parIni["modelSig_mass"]=="Gauss") {
+  if (parIni["modelSig_mass"] == "Gauss") {
     ws->factory("RooGaussian::jpsiGaus_mass(mass, mean_mass, sigma_mass)");
     ws->factory("RooExtendPdf::jpsiPDF_mass(jpsiGaus_mass, fJpsi_mass)");
     ws->factory("RooGaussian::psi2sGaus_mass(mass, mean_psi2s, sigma_mass)");
     ws->factory("RooExtendPdf::psi2sPDF_mass(psi2sGaus_mass, fPsi2s_mass)");
   }
-  else if (parIni["modelSig_mass"]=="extCB") {
+  else if (parIni["modelSig_mass"] == "extCB") {
     ws->factory("RooExtCBShape::jpsiExtCB_mass(mass, mean_mass, sigma_mass, alpha0_mass, n0_mass, alpha1_mass, n1_mass)");
     ws->factory("RooExtendPdf::jpsiPDF_mass(jpsiExtCB_mass, fJpsi_mass)");
     ws->factory("RooExtCBShape::psi2sExtCB_mass(mass, mean_psi2s, sigma_mass, alpha0_mass, n0_mass, alpha1_mass, n1_mass)");
@@ -155,10 +153,10 @@ void buildPDF_mass(RooWorkspace* ws, map<string, string> parIni, bool isMC){
 void buildPDF_tauzRes(RooWorkspace* ws, map<string, string> parIni){
   // RooRealVar xMaxRes("xMaxRes", "xMaxRes", 0, -0.02, 0.02);
   // ws->import(xMaxRes);
-  if (parIni["model_tauzRes"]=="extCB") {
+  if (parIni["model_tauzRes"] == "extCB") {
     ws->factory("RooExtCBShape::tauzResPDF(tauz, mean_tauzRes, sigma_tauzRes, alpha_tauzRes, n_tauzRes, alpha_tauzRes, n_tauzRes)");
   }
-  else if (parIni["model_tauzRes"]=="CB") {
+  else if (parIni["model_tauzRes"] == "CB") {
     ws->factory("RooCBShape::tauzResPDF(tauz, mean_tauzRes, sigma_tauzRes, alpha_tauzRes, n_tauzRes)");
   }
   else if (parIni["model_tauzRes"] == "Gauss2") {
@@ -171,7 +169,7 @@ void buildPDF_tauzRes(RooWorkspace* ws, map<string, string> parIni){
 
     ws->factory("RooAddModel::tauzResModel({gauss0, gauss1},{fGaus0_tauzRes})");
   }
-  else if (parIni["model_tauzRes"]=="Gauss3") {
+  else if (parIni["model_tauzRes"] == "Gauss3") {
     ws->factory("Gaussian::gauss0_tauzRes(tauz, mean_tauzRes, sigma0_tauzRes)");
     ws->factory("Gaussian::gauss1_tauzRes(tauz, mean_tauzRes, sigma1_tauzRes)");
     ws->factory("Gaussian::gauss2_tauzRes(tauz, mean_tauzRes, sigma2_tauzRes)");
@@ -184,7 +182,7 @@ void buildPDF_tauzRes(RooWorkspace* ws, map<string, string> parIni){
 
     ws->factory("RooAddModel::tauzResModel({gauss0, gauss1, gauss2},{fGaus0_tauzRes, fGaus1_tauzRes})");
   }
-  else if (parIni["model_tauzRes"]=="Gauss3VarMeans") {
+  else if (parIni["model_tauzRes"] == "Gauss3VarMeans") {
     ws->factory("Gaussian::gauss0_tauzRes(tauz, mean0_tauzRes, sigma0_tauzRes)");
     ws->factory("Gaussian::gauss1_tauzRes(tauz, mean1_tauzRes, sigma1_tauzRes)");
     ws->factory("Gaussian::gauss2_tauzRes(tauz, mean2_tauzRes, sigma2_tauzRes)");
@@ -197,7 +195,7 @@ void buildPDF_tauzRes(RooWorkspace* ws, map<string, string> parIni){
 
     ws->factory("RooAddModel::tauzResModel({gauss0, gauss1, gauss2},{fGaus0_tauzRes, fGaus1_tauzRes})");
   }
-  else if (parIni["model_tauzRes"]=="Gauss4") {
+  else if (parIni["model_tauzRes"] == "Gauss4") {
   ws->factory("Gaussian::gauss0_tauzRes(tauz, mean_tauzRes, sigma0_tauzRes)");
   ws->factory("Gaussian::gauss1_tauzRes(tauz, mean_tauzRes, sigma1_tauzRes)");
   ws->factory("Gaussian::gauss2_tauzRes(tauz, mean_tauzRes, sigma2_tauzRes)");
@@ -214,7 +212,7 @@ void buildPDF_tauzRes(RooWorkspace* ws, map<string, string> parIni){
   }
 }
 void buildPDF_tauzBkg(RooWorkspace* ws, map<string, string> parIni) {
-  if (parIni["modelNpr_tauzBkg"]=="TripleDecay") {
+  if (parIni["modelNpr_tauzBkg"] == "TripleDecay") {
     ws->factory("Decay::ssdNpr_tauzBkg(tauz, lambdaDssNpr_tauzBkg, tauzResModel, RooDecay::SingleSided)");
     ws->factory("Decay::dfNpr_tauzBkg(tauz, lambdaDfNpr_tauzBkg, tauzResModel, RooDecay::Flipped)");
     ws->factory("Decay::dsdNpr_tauzBkg(tauz, lambdaDdsNpr_tauzBkg, tauzResModel, RooDecay::DoubleSided)");
@@ -244,9 +242,13 @@ void buildPDF_tauzSig(RooWorkspace* ws, map<string, string> parIni) {
     ws->factory("Decay::tauzNprGaus0(tauz, lambdaDssNpr_tauzSig, gauss0, RooDecay::SingleSided)");
     ws->factory("Decay::tauzNprGaus1(tauz, lambdaDssNpr_tauzSig, gauss1, RooDecay::SingleSided)");
     ws->factory("Decay::tauzNprGaus2(tauz, lambdaDssNpr_tauzSig, gauss2, RooDecay::SingleSided)");
+    if (parIni["model_tauzRes"] == "Gauss4") { ws->factory("Decay::tauzNprGaus3(tauz, lambdaDssNpr_tauzSig, gauss3, RooDecay::SingleSided)"); }
 
     // non-prompt
-    ws->factory("SUM::tauzNprSigPDF(fGaus0_tauzRes*tauzNprGaus0, fGaus1_tauzRes*tauzNprGaus1, tauzNprGaus2)");
+    // TODO: to be validated still !!!
+    // ws->factory("SUM::tauzNprSigPDF(fGaus0_tauzRes*tauzNprGaus0, fGaus1_tauzRes*tauzNprGaus1, tauzNprGaus2)");
+    if (parIni["model_tauzRes"] == "Gauss4") { ws->factory("SUM::tauzNprSigPDF(fGaus0_tauzRes*tauzNprGaus0, fGaus1_tauzRes*tauzNprGaus1, fGaus2_tauzRes*tauzNprGaus2, fGaus1m012_tauzRes*tauzNprGaus3)"); }
+    else { ws->factory("SUM::tauzNprSigPDF(fGaus0_tauzRes*tauzNprGaus0, fGaus1_tauzRes*tauzNprGaus1, tauzNprGaus2)"); }
 
     // resolution Gaussians: different approach
     // also comment out the 3 Gaussians above
@@ -261,7 +263,7 @@ void buildPDF_tauzSig(RooWorkspace* ws, map<string, string> parIni) {
   }
 }
 
-void buildPDF_2D(RooWorkspace* ws, bool isMC){  
+void buildPDF_2D(RooWorkspace* ws, bool isMC) {  
   ws->factory("PROD::tauzMassPrJpsiPDF(tauzPrSigPDF, jpsiPDF_mass)");
   ws->factory("PROD::tauzMassNprJpsiPDF(tauzNprSigPDF, jpsiPDF_mass)");
   ws->factory("SUM::tauzMassTotJpsiPDF(b_jpsi_tauzMass*tauzMassNprJpsiPDF, tauzMassPrJpsiPDF)");
@@ -282,7 +284,7 @@ void buildPDF_2D(RooWorkspace* ws, bool isMC){
   }
 }
 
-void setDefaultParameters(map<string, string>& parIni, double nEntriesDS){
+void setDefaultParameters(map<string, string>& parIni, double nEntriesDS) {
   // Only define the parameters if they will be used in one of the fit models
   std::map<std::string, std::string> modelMap;
   modelMap["modelBkg_mass"] = "ChevPol2";
@@ -310,11 +312,13 @@ void setDefaultParameters(map<string, string>& parIni, double nEntriesDS){
   varMap["alpha1_mass"] = {1., 0, 5};
   varMap["n1_mass"] = {3., 0, 5};
 
-  varMap["c0_mass"] = {0, -2, 2};
-  varMap["c1_mass"] = {0, -2, 2};
-  varMap["c2_mass"] = {0, -2, 2};
-  varMap["c3_mass"] = {0, -2, 2};
-  varMap["c4_mass"] = {0, -2, 2};
+  if (parIni["modelBkg_mass"] == "ChevPol1" || parIni["modelBkg_mass"] == "ChevPol2" || parIni["modelBkg_mass"] == "ChevPol3" || parIni["modelBkg_mass"] == "ChevPol4" || parIni["modelBkg_mass"] == "ChevPol5" || parIni["modelBkg_mass"] == "ChevPol6") {
+    varMap["c0_mass"] = {0, -2, 2};
+    varMap["c1_mass"] = {0, -2, 2};
+    varMap["c2_mass"] = {0, -2, 2};
+    varMap["c3_mass"] = {0, -2, 2};
+    varMap["c4_mass"] = {0, -2, 2};
+  }
   
   if (parIni["modelBkg_mass"] == "VWG") {
     varMap["A_mass"] = {2.0, 0.0, 10.3};
@@ -324,9 +328,9 @@ void setDefaultParameters(map<string, string>& parIni, double nEntriesDS){
 
   // TODO: uncomment these blocks after 2nd step fits are validated!!!
   varMap["xMaxRes"] = {0, -0.0002, 0.0002};
-  // varMap["mean_tauzRes"] = {0, -0.000005, 0.000005};
   varMap["mean_tauzRes"] = {0, -0.0002, 0.0002};
-  if (parIni["model_tauzRes"]=="extCB" || parIni["model_tauzRes"]=="CB") {
+  // varMap["mean_tauzRes"] = {0, -0.0002, 0.008}; // upper bound only relevant for MC (0.008 is good choice)
+  if (parIni["model_tauzRes"] == "extCB" || parIni["model_tauzRes"] == "CB") {
     varMap["sigma_tauzRes"] = {0.00045, 0.0002, 0.0010};
     varMap["alpha_tauzRes"] = {1, 0., 3};
     varMap["n_tauzRes"] = {1.5, 0., 10};
@@ -334,11 +338,11 @@ void setDefaultParameters(map<string, string>& parIni, double nEntriesDS){
   if (parIni["model_tauzRes"] == "Gauss2" || parIni["model_tauzRes"] == "Gauss3" || parIni["model_tauzRes"] == "Gauss4") {
     varMap["sigma0_tauzRes"] = {0.00045, 0.0002, 0.0010};
     varMap["sigma1_tauzRes"] = {0.00045, 0.0002, 0.0010};
-    varMap["fGaus0_tauzRes"] = {0.7, 0.4, 0.95};
+    varMap["fGaus0_tauzRes"] = {0.7, 0.4, 1};
   }
   if (parIni["model_tauzRes"] == "Gauss3" || parIni["model_tauzRes"] == "Gauss4") {
     varMap["sigma2_tauzRes"] = {0.00045, 0.0002, 0.0010};
-    varMap["fGaus1_tauzRes"] = {0.2, 0.05, 0.4};
+    varMap["fGaus1_tauzRes"] = {0.2, 0, 0.4};
   }
   if (parIni["model_tauzRes"] == "Gauss4") {
     varMap["sigma3_tauzRes"] = {0.00045, 0.0002, 0.0030};
@@ -356,7 +360,7 @@ void setDefaultParameters(map<string, string>& parIni, double nEntriesDS){
   varMap["lambdaDdsNpr_tauzBkg"] = {0.045, 0.0001, 0.08};
   
   for (auto it = varMap.begin(); it != varMap.end(); ++it) {
-    cout << "[INFO] adding the default parameters for " << it->first << endl;
+    cout << "[INFO] adding the input file parameters for " << it->first << endl;
     if (parIni.count(it->first)==0 || parIni[it->first]=="") {
       cout << "[INFO] this parameter does not exist in the input files so adding it now" << endl;
       parIni[it->first] = Form("[%f,%f,%f]", it->second[0], it->second[1], it->second[2]);
@@ -375,7 +379,7 @@ void setDefaultParameters(map<string, string>& parIni, double nEntriesDS){
 void fixParPDF(RooWorkspace* ws, RooFitResult* fitResult, map<string, string> &parIni, bool ispO, string rangeLabel, const char *caseName, bool fromMassPDF, bool fromTauzResPDF, bool fromNpTauzResPDF, bool fromTauzBkgPDF, bool biasLambdaPar) {
   std::vector<std::string> fixedPars;
   std::vector<std::string> biasedPars; // used as input for 2nd step of resolution fit
-  double bias = 0.1;
+  double bias = 0.;
   if (fromMassPDF) {
     if (parIni["modelSig_mass"]=="Gauss") {
       fixedPars.push_back("mean_mass");
@@ -426,12 +430,14 @@ void fixParPDF(RooWorkspace* ws, RooFitResult* fitResult, map<string, string> &p
 
     else if (parIni["model_tauzRes"] == "Gauss2" || parIni["model_tauzRes"] == "Gauss3" || parIni["model_tauzRes"] == "Gauss4") {
       if (!fromNpTauzResPDF) {
+        fixedPars.push_back("mean_tauzRes");
         fixedPars.push_back("sigma0_tauzRes");
         fixedPars.push_back("sigma1_tauzRes");
         fixedPars.push_back("fGaus0_tauzRes");
       }
       else {
-        biasedPars.push_back("mean_tauzRes");
+        fixedPars.push_back("mean_tauzRes");
+        // biasedPars.push_back("mean_tauzRes"); // why does this not work when mean_tauzRes is constant ?
         biasedPars.push_back("sigma0_tauzRes");
         biasedPars.push_back("sigma1_tauzRes");
         biasedPars.push_back("fGaus0_tauzRes");
@@ -524,26 +530,34 @@ if (biasLambdaPar) { biasedPars.push_back("lambdaDssNpr_tauzSig"); }
     resTree->GetEntry(0);
 
     for (const auto& [name, val] : fixValues) {
-        RooRealVar* var = ws->var(name.c_str());
-        if (!var) { cout << "[ERROR] Variable " << name << " not found in workspace" << endl; continue; }
-        if (!fromNpTauzResPDF) {
-          if (name != "lambdaDssNpr_tauzSig") {
-            cout << "[INFO] Fixing " << name << " = " << val << endl;
-            var->setVal(val);
-            var->setConstant(kTRUE);
-          }
-          // We don't fix the value of λsig, but read and bias it
-          else {
-            cout << "[INFO] Reading " << name << " = " << val << endl; var->setVal(val);
-            var->setMin(var->getVal() - bias * std::abs(var->getVal()));
-            var->setMax(var->getVal() + bias * std::abs(var->getVal()));
-          }
+      RooRealVar* var = ws->var(name.c_str());
+      if (!var) { cout << "[ERROR] Variable " << name << " not found in workspace" << endl; continue; }
+      if (!fromNpTauzResPDF) {
+        if (name != "lambdaDssNpr_tauzSig") {
+          cout << "[INFO] Fixing " << name << " = " << val << endl;
+          var->setVal(val);
+          var->setConstant(kTRUE);
         }
+        // We don't fix the value of λsig, but read and bias it
         else {
-          cout << "[INFO] Reading " << name << " = " << val << endl; var->setVal(val);
-          var->setMin(var->getVal() - bias * std::abs(var->getVal()));
-          var->setMax(var->getVal() + bias * std::abs(var->getVal()));
+          cout << "[INFO] Reading " << name << " = " << val << endl;
+          var->setVal(val);
+          if (bias == 0.) { var->setConstant(kTRUE); }
+          else {
+            var->setMin(val - bias * std::abs(val));
+            var->setMax(val + bias * std::abs(val));
+          }
         }
+      }
+      else {
+        cout << "[INFO] Reading " << name << " = " << val << endl;
+        var->setVal(val);
+        if (bias == 0.) { var->setConstant(kTRUE); }
+        else {
+          var->setMin(val - bias * std::abs(val));
+          var->setMax(val + bias * std::abs(val));
+        }
+      }
     }
 
     resFile->Close();
@@ -553,22 +567,30 @@ if (biasLambdaPar) { biasedPars.push_back("lambdaDssNpr_tauzSig"); }
     fitResult->Print();
     for (const auto& par : fixedPars) {
       cout << "[INFO] let's fix " << par << endl;
-      RooRealVar* var = (RooRealVar*) fitResult->floatParsFinal().find(par.c_str());
-      ws->var(par.c_str())->setVal(var->getVal());
+      RooRealVar* fitVar = (RooRealVar*) (fitResult->floatParsFinal().find(par.c_str()));
+      if (!fitVar) { 
+        fitVar = (RooRealVar*) (fitResult->constPars().find(par.c_str()));
+        cout << "[WARNING] " << par << " not found in fitResult" << endl;
+      }
+      ws->var(par.c_str())->setVal(fitVar->getVal());
       ws->var(par.c_str())->setConstant(kTRUE);
     }
     if (fromNpTauzResPDF) {
       fitResult->Print();
       for (const auto& par : biasedPars) {
         cout << "[INFO] let's bias " << par << endl;
-        RooRealVar* var = (RooRealVar*) fitResult->floatParsFinal().find(par.c_str());
-        ws->var(par.c_str())->setVal(var->getVal());
-        ws->var(par.c_str())->setMin(var->getVal() - bias * std::abs(var->getVal()));
-        ws->var(par.c_str())->setMax(var->getVal() + bias * std::abs(var->getVal()));
+        RooRealVar* fitVar = (RooRealVar*) fitResult->floatParsFinal().find(par.c_str());
+        if (!fitVar) { 
+          fitVar = (RooRealVar*) (fitResult->constPars().find(par.c_str()));
+          cout << "[WARNING] " << par << " not found in fitResult" << endl;
+        }
+        ws->var(par.c_str())->setVal(fitVar->getVal());
+        ws->var(par.c_str())->setMin(fitVar->getVal() - bias * std::abs(fitVar->getVal()));
+        ws->var(par.c_str())->setMax(fitVar->getVal() + bias * std::abs(fitVar->getVal()));
         if (bias == 0) { ws->var(par.c_str())->setConstant(kTRUE); }
-        cout << "       value = " << var->getVal()
-            << ", range = [" << var->getVal() - bias * std::abs(var->getVal())
-            << ", " << var->getVal() + bias * std::abs(var->getVal()) << "]"
+        cout << "       value = " << fitVar->getVal()
+            << ", range = [" << fitVar->getVal() - bias * std::abs(fitVar->getVal())
+            << ", " << fitVar->getVal() + bias * std::abs(fitVar->getVal()) << "]"
             << endl;
       }
     }

@@ -1,4 +1,4 @@
-// Author: Batoul Diab
+// Author: Batoul Diab, Paul Veen
 #include <vector>
 #include <iostream>
 #include <algorithm>
@@ -30,12 +30,12 @@ void InputToResults(bool ispO=true, bool isMC=false, const char *caseName = "nom
   gROOT->ProcessLine(".L RooExtCBShape.cxx+");
   gROOT->ProcessLine(".L Libs/VWGPdf.cxx+");
   // Enable the lines below to make roofit shut up its verbosity (or enable for debugging)
-  // RooMsgService::instance().setSilentMode(true);
-  // RooMsgService::instance().setGlobalKillBelow(RooFit::ERROR);
+  RooMsgService::instance().setSilentMode(true);
+  RooMsgService::instance().setGlobalKillBelow(RooFit::ERROR);
 
   // TODO: Make coherent and consistent the values for the sidebands everywhere...
   bool doSplot = false; bool doSideBands = false;
-  if (strcmp(methodName, "sPlot") == 0) doSplot = true;
+  if (strcmp(methodName, "sPlot") == 0 || strcmp(methodName, "sPlot_binned") == 0) doSplot = true;
   if (strcmp(methodName, "sideBands") == 0 || strcmp(methodName, "sideBand") == 0) doSideBands = true;
   if (doSplot && doSideBands) { cout << "[ERROR] cannot perform SPLOT and SIDEBANDS methods simultaneously" << endl; return; }
 
@@ -44,21 +44,27 @@ void InputToResults(bool ispO=true, bool isMC=false, const char *caseName = "nom
     // TODO: in inputUtils I create a data set for the mass with cuts in the peak range. This should be changed for the sidebands
     // strategy and it should also change the expected value for the J/psi and the background.
     // Maybe it can be based on the sizes of those seperate datasets?
+    std::cout << "***************************** START OF 1D MASS FIT *****************************" << std::endl;
     signalExtraction(ispO, isMC, caseName, methodName, remakeDS, true, false, false, false); remakeDS=false;
   }
   if (fitTauz1D) {
       // Don't do the 2-step resolution fit
       if (!fitNpTauz1D) {
+        std::cout << "***************************** START OF 1D TAUZ FIT *****************************" << std::endl;
         signalExtraction(ispO, isMC, caseName, methodName, remakeDS, false, true, false, true); remakeDS=false;
       } 
       // Do the 2-step resolution fit
-      else { 
+      else {
+        std::cout << "***************************** START OF 1D TAUZ FIT *****************************" << std::endl;
         signalExtraction(ispO, isMC, caseName, methodName, remakeDS, false, true, false, false); remakeDS=false;
+        std::cout << "***************************** START OF 1D TAUZ NON-PROMPT FIT *****************************" << std::endl;
         signalExtraction(ispO, isMC, caseName, methodName, remakeDS, false, true, true, true); remakeDS=false; 
       }
   }
-  if (fit2D)
+  if (fit2D) {
+    std::cout << "***************************** START OF 2D MASS-TAUZ FIT *****************************" << std::endl;
     signalExtraction(ispO, isMC, caseName, methodName, remakeDS, true, true, false, false);
+  }
 
   if (plotResults) {
     int minCent = 0;
@@ -80,7 +86,7 @@ void InputToResults(bool ispO=true, bool isMC=false, const char *caseName = "nom
 void signalExtraction(bool ispO, bool isMC, const char *caseName, const char *methodName, bool remakeDS, bool fitMass, bool fitTauz, bool fitNpTauz, bool fitTauzBkg) {
   // What method to use for the mass signal - background seperation?
   bool doSplot = false; bool doSideBands = false;
-  if (strcmp(methodName, "sPlot") == 0) doSplot = true;
+  if (strcmp(methodName, "sPlot") == 0 || strcmp(methodName, "sPlot_binned") == 0) doSplot = true;
   if (strcmp(methodName, "sideBands") == 0) doSideBands = true;
 
   // Do the fits or at least some of them
@@ -191,10 +197,13 @@ void signalExtraction(bool ispO, bool isMC, const char *caseName, const char *me
       double fGaus0_tauzRes_err;
       double fGaus1_tauzRes;
       double fGaus1_tauzRes_err;
+      double fGaus2_tauzRes;
+      double fGaus2_tauzRes_err;
     };
     vector<FitSummaryRow> fitSummary;
 
   for (uint j = 0; j < cutVector.size(); j++) {
+    int idCall = j;
     if (parIniVector[j]["fitStat"] != "todo") {
       cout<<"[INFO] This fit does not have the 'todo' status, so it will be skipped!"<<endl;
       continue;
@@ -320,7 +329,7 @@ void signalExtraction(bool ispO, bool isMC, const char *caseName, const char *me
     }
     
     resultsFit.clear();
-    resultsFit = SignalExtraction1Fit(parIniVector[j], ws, caseName, methodName, rangeLabel, ispO, isMC, fitMass, fitTauz, fitNpTauz, fitTauzBkg, cutVector[j]);
+    resultsFit = SignalExtraction1Fit(parIniVector[j], ws, caseName, methodName, rangeLabel, ispO, isMC, fitMass, fitTauz, fitNpTauz, fitTauzBkg, cutVector[j], idCall);
     resultsFit["centMin"] = cutVector[j].cent.Start;
     resultsFit["centMax"] = cutVector[j].cent.End;
     resultsFit["ptMin"] = cutVector[j].pt.Min;
@@ -382,6 +391,8 @@ void signalExtraction(bool ispO, bool isMC, const char *caseName, const char *me
     summaryRow.fGaus0_tauzRes_err = getResult("fGaus0_tauzRes_err");
     summaryRow.fGaus1_tauzRes = getResult("fGaus1_tauzRes");
     summaryRow.fGaus1_tauzRes_err = getResult("fGaus1_tauzRes_err");
+    summaryRow.fGaus2_tauzRes = getResult("fGaus2_tauzRes");
+    summaryRow.fGaus2_tauzRes_err = getResult("fGaus2_tauzRes_err");
 
     fitSummary.push_back(summaryRow);
 
@@ -466,11 +477,12 @@ void signalExtraction(bool ispO, bool isMC, const char *caseName, const char *me
     << "sigma2_tauzRes (ns)\t"
     << "sigma3_tauzRes (ns)\t"
     << "fGaus0_tauzRes\t"
-    << "fGaus1_tauzRes"
+    << "fGaus1_tauzRes\t"
+    << "fGaus2_tauzRes"
     << "\n";
 
   // Case name on second row
-  tsvFile << caseName << "\t\t\t\t\t\t\t\t\t\t\t\t\t\t\t\n";
+  tsvFile << caseName << "\t\t\t\t\t\t\t\t\t\t\t\t\t\t\t\t\n";
 
   // Data rows
   tsvFile << std::setprecision(5);
@@ -498,7 +510,8 @@ void signalExtraction(bool ispO, bool isMC, const char *caseName, const char *me
       << row.sigma2_tauzRes << " (" << row.sigma2_tauzRes_err << ")" << "\t"
       << row.sigma3_tauzRes << " (" << row.sigma3_tauzRes_err << ")" << "\t"
       << row.fGaus0_tauzRes << " (" << row.fGaus0_tauzRes_err << ")" << "\t"
-      << row.fGaus1_tauzRes << " (" << row.fGaus1_tauzRes_err << ")"
+      << row.fGaus1_tauzRes << " (" << row.fGaus1_tauzRes_err << ")" << "\t"
+      << row.fGaus2_tauzRes << " (" << row.fGaus2_tauzRes_err << ")"
       << "\n";
   }
   tsvFile.close();
